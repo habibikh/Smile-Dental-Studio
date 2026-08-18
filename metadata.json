@@ -1,0 +1,6 @@
+{
+  "name": "Smile Dental",
+  "description": "Full-Stack AI Dental Appointment & Clinic Management Platform with real-time availability and smart booking assistant.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

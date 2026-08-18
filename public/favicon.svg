@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <defs>
+    <linearGradient id="tealGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0d9488" />
+      <stop offset="100%" stop-color="#0f766e" />
+    </linearGradient>
+  </defs>
+  <!-- Background Squircle matching Navbar brand icon -->
+  <rect width="48" height="48" rx="12" fill="url(#tealGrad)" />
+  <!-- Smile Lucide Icon Paths in crisp white -->
+  <circle cx="24" cy="24" r="14" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M18 27C19.5 30 22 31.5 24 31.5C26 31.5 28.5 30 30 27" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+  <line x1="19" y1="19" x2="19.01" y2="19" stroke="#ffffff" stroke-width="3" stroke-linecap="round" />
+  <line x1="29" y1="19" x2="29.01" y2="19" stroke="#ffffff" stroke-width="3" stroke-linecap="round" />
+</svg>
