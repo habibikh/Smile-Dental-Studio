@@ -6,9 +6,15 @@ import {
   ClinicHoliday,
   DoctorUnavailability,
   Appointment,
+  AppointmentStatus,
   PatientProfile,
   BookingPayload,
-  ReschedulePayload
+  ReschedulePayload,
+  PersonalAssistant,
+  HospitalRegistration,
+  AdminInviteToken,
+  AdminAccount,
+  ClinicAdminAccount
 } from '@/types/dental';
 
 // Default In-Memory / Hybrid Dataset initialized with full clinic data
@@ -204,6 +210,9 @@ const INITIAL_DOCTORS: Doctor[] = [
   {
     id: 'dr-sarah-chen',
     name: 'Dr. Sarah Chen, DDS',
+    email: 'dr.sarah.chen@smiledental.com',
+    password: 'doctor123',
+    phone: '(555) 234-1101',
     title: 'Lead Cosmetic & Restorative Dentist',
     qualification: 'DDS (Columbia University), AACD Accredited Fellow',
     specialization: 'Cosmetic & Aesthetic Dentistry',
@@ -220,6 +229,9 @@ const INITIAL_DOCTORS: Doctor[] = [
   {
     id: 'dr-ahmed-khan',
     name: 'Dr. Ahmed Khan, DMD, MS',
+    email: 'dr.ahmed.khan@smiledental.com',
+    password: 'doctor123',
+    phone: '(555) 234-1102',
     title: 'Senior Orthodontist & Aligner Specialist',
     qualification: 'DMD (Harvard School of Dental Medicine), MS Orthodontics',
     specialization: 'Orthodontics & Clear Aligners',
@@ -236,6 +248,9 @@ const INITIAL_DOCTORS: Doctor[] = [
   {
     id: 'dr-elena-rodriguez',
     name: 'Dr. Elena Rodriguez, DDS',
+    email: 'dr.elena.rodriguez@smiledental.com',
+    password: 'doctor123',
+    phone: '(555) 234-1103',
     title: 'Director of Implantology & Oral Surgery',
     qualification: 'DDS (UCSF Dental), ICOI Diplomate in Implantology',
     specialization: 'Dental Implants & Oral Surgery',
@@ -252,6 +267,9 @@ const INITIAL_DOCTORS: Doctor[] = [
   {
     id: 'dr-marcus-vance',
     name: 'Dr. Marcus Vance, DDS',
+    email: 'dr.marcus.vance@smiledental.com',
+    password: 'doctor123',
+    phone: '(555) 234-1104',
     title: 'Chief Endodontist & Micro-Surgeon',
     qualification: 'DDS (NYU College of Dentistry), Certificate in Endodontics',
     specialization: 'Microscopic Endodontics (Root Canal)',
@@ -268,6 +286,9 @@ const INITIAL_DOCTORS: Doctor[] = [
   {
     id: 'dr-emily-watson',
     name: 'Dr. Emily Watson, DMD',
+    email: 'dr.emily.watson@smiledental.com',
+    password: 'doctor123',
+    phone: '(555) 234-1105',
     title: 'Pediatric & Family Dentist',
     qualification: 'DMD (University of Pennsylvania), Board Certified Pediatric Dentist',
     specialization: 'Pediatric & Preventive Dentistry',
@@ -284,6 +305,9 @@ const INITIAL_DOCTORS: Doctor[] = [
   {
     id: 'dr-david-kim',
     name: 'Dr. David Kim, DDS',
+    email: 'dr.david.kim@smiledental.com',
+    password: 'doctor123',
+    phone: '(555) 234-1106',
     title: 'General & Periodontal Dentist',
     qualification: 'DDS (UCLA School of Dentistry), AAP Member',
     specialization: 'General Dentistry & Periodontics',
@@ -492,6 +516,171 @@ const INITIAL_APPOINTMENTS: Appointment[] = [
   }
 ];
 
+// Initial Personal Assistants (Strictly 1 PA per Doctor)
+const INITIAL_PERSONAL_ASSISTANTS: PersonalAssistant[] = [
+  {
+    id: 'pa-sarah-jenkins',
+    doctorId: 'dr-sarah-chen',
+    doctorName: 'Dr. Sarah Chen, DDS',
+    name: 'Sarah Jenkins, RMA',
+    title: 'Clinical PA & Registered Medical Assistant',
+    email: 'sarah.pa@smiledental.com',
+    phone: '(555) 234-8801',
+    password: 'pa123',
+    avatarUrl: 'https://picsum.photos/seed/pasarah/400/400',
+    status: 'active',
+    permissions: {
+      canManageAppointments: true,
+      canManageSchedules: true,
+      canViewPatientNotes: true,
+      canReschedule: true,
+      canSendReminders: true,
+    },
+    createdAt: '2026-01-15T09:00:00.000Z',
+    updatedAt: '2026-01-15T09:00:00.000Z',
+  },
+  {
+    id: 'pa-alex-rivera',
+    doctorId: 'dr-ahmed-khan',
+    doctorName: 'Dr. Ahmed Khan, DMD, MS',
+    name: 'Alex Rivera, CDA',
+    title: 'Orthodontic Personal Coordinator',
+    email: 'alex.pa@smiledental.com',
+    phone: '(555) 234-8802',
+    password: 'pa123',
+    avatarUrl: 'https://picsum.photos/seed/paalex/400/400',
+    status: 'active',
+    permissions: {
+      canManageAppointments: true,
+      canManageSchedules: true,
+      canViewPatientNotes: true,
+      canReschedule: true,
+      canSendReminders: true,
+    },
+    createdAt: '2026-01-15T09:00:00.000Z',
+    updatedAt: '2026-01-15T09:00:00.000Z',
+  },
+  {
+    id: 'pa-jordan-hayes',
+    doctorId: 'dr-elena-rodriguez',
+    doctorName: 'Dr. Elena Rodriguez, DDS',
+    name: 'Jordan Hayes, RDA',
+    title: 'Surgical PA & Implant Care Assistant',
+    email: 'jordan.pa@smiledental.com',
+    phone: '(555) 234-8803',
+    password: 'pa123',
+    avatarUrl: 'https://picsum.photos/seed/pajordan/400/400',
+    status: 'active',
+    permissions: {
+      canManageAppointments: true,
+      canManageSchedules: true,
+      canViewPatientNotes: true,
+      canReschedule: true,
+      canSendReminders: true,
+    },
+    createdAt: '2026-01-15T09:00:00.000Z',
+    updatedAt: '2026-01-15T09:00:00.000Z',
+  },
+];
+
+// Initial Hospital Registrations (Hospital application service fee confirmed)
+const INITIAL_HOSPITAL_REGISTRATIONS: HospitalRegistration[] = [
+  {
+    id: 'hosp-metro-smile',
+    hospitalName: 'Metro Smile Dental Hospital & Surgical Pavilion',
+    licenseNumber: 'HOSP-MED-2026-88392',
+    directorName: 'Dr. Jonathan Reynolds, Chief Medical Officer',
+    officialEmail: 'licensing@smiledental.com',
+    phone: '(555) 234-5000',
+    city: 'Metro City',
+    address: '100 Grand Medical Way, Pavilion 4',
+    suiteCount: 18,
+    registrationFeeAmount: 499.00,
+    feeCurrency: 'USD',
+    feePaymentStatus: 'verified',
+    paymentMethod: 'Credit Card (Corporate)',
+    transactionId: 'TXN-HOSP-9948271',
+    paidAt: '2026-01-10T12:00:00.000Z',
+    adminInviteToken: 'adm_inv_demo_primary_claimed',
+    adminInviteTokenExpiresAt: '2026-01-12T12:00:00.000Z',
+    adminInviteTokenUsed: true,
+    adminCreatedEmail: 'admin@smiledental.com',
+    adminCreatedAt: '2026-01-10T14:30:00.000Z',
+    panelProvisioned: true,
+    panelProvisionedAt: '2026-01-10T12:05:00.000Z',
+    panelProvisionedBy: 'Application Super Admin',
+    branchId: 'branch-downtown',
+    createdAt: '2026-01-10T12:00:00.000Z',
+  },
+  {
+    id: 'hosp-apex-maxillo',
+    hospitalName: 'Apex Dental Hospital & Maxillofacial Center',
+    licenseNumber: 'HOSP-APEX-2026-44019',
+    directorName: 'Dr. Marcus Vance, Surgical Director',
+    officialEmail: 'operations@apexdentalhospital.org',
+    phone: '(555) 678-9100',
+    city: 'Metro City',
+    address: '880 Pavilion Expressway, Tower North',
+    suiteCount: 12,
+    registrationFeeAmount: 499.00,
+    feeCurrency: 'USD',
+    feePaymentStatus: 'verified',
+    paymentMethod: 'Bank Wire / Corporate ACH',
+    transactionId: 'TXN-HOSP-7719204',
+    paidAt: '2026-02-01T09:30:00.000Z',
+    adminInviteToken: 'adm_inv_apex_pending_activation_772',
+    adminInviteTokenExpiresAt: '2026-12-31T23:59:59.000Z',
+    adminInviteTokenUsed: false,
+    panelProvisioned: false, // Awaiting Application Admin creation
+    branchId: 'branch-northshore',
+    createdAt: '2026-02-01T09:30:00.000Z',
+  },
+];
+
+// Initial Single-Use Admin Invite Tokens
+const INITIAL_ADMIN_INVITE_TOKENS: AdminInviteToken[] = [
+  {
+    token: 'adm_inv_demo_primary_claimed',
+    hospitalId: 'hosp-metro-smile',
+    hospitalName: 'Metro Smile Dental Hospital & Surgical Pavilion',
+    officialEmail: 'licensing@smiledental.com',
+    directorName: 'Dr. Jonathan Reynolds',
+    expiresAt: '2026-01-12T12:00:00.000Z',
+    used: true,
+    usedAt: '2026-01-10T14:30:00.000Z',
+    createdAdminEmail: 'admin@smiledental.com',
+    createdAdminName: 'Hospital System Administrator',
+  },
+];
+
+const INITIAL_ADMIN_ACCOUNTS: AdminAccount[] = [
+  {
+    id: 'adm-primary-1',
+    hospitalId: 'hosp-metro-smile',
+    hospitalName: 'Metro Smile Dental Hospital & Surgical Pavilion',
+    name: 'Hospital System Administrator',
+    email: 'admin@smiledental.com',
+    password: 'smile1234',
+    role: 'primary_admin',
+    phone: '(555) 234-5000',
+    createdAt: '2026-01-10T14:30:00.000Z',
+  },
+];
+
+const INITIAL_CLINIC_ADMINS: ClinicAdminAccount[] = [
+  {
+    id: 'clinic-adm-doctor-1',
+    name: 'Dr. Elena Rostova',
+    email: 'doctor@smiledental.com',
+    password: 'smile1234',
+    phone: '(555) 234-1100',
+    clinicId: 'branch-downtown',
+    clinicName: 'Smile Dental - Downtown Metro',
+    role: 'clinic_admin',
+    createdAt: '2026-01-10T14:30:00.000Z',
+  },
+];
+
 // Persistent Global Storage Store (survives Next.js dev reload cycles)
 declare global {
   var __smileDentalStore: {
@@ -503,6 +692,11 @@ declare global {
     unavailabilities: DoctorUnavailability[];
     appointments: Appointment[];
     patients: Map<string, PatientProfile>;
+    personalAssistants: PersonalAssistant[];
+    hospitalRegistrations: HospitalRegistration[];
+    adminInviteTokens: AdminInviteToken[];
+    adminAccounts: AdminAccount[];
+    clinicAdmins: ClinicAdminAccount[];
   } | undefined;
 }
 
@@ -523,7 +717,14 @@ function getStore() {
       unavailabilities: [...INITIAL_UNAVAILABILITIES],
       appointments: [...INITIAL_APPOINTMENTS],
       patients: initPatientsMap(),
+      personalAssistants: [...INITIAL_PERSONAL_ASSISTANTS],
+      hospitalRegistrations: [...INITIAL_HOSPITAL_REGISTRATIONS],
+      adminInviteTokens: [...INITIAL_ADMIN_INVITE_TOKENS],
+      adminAccounts: [...INITIAL_ADMIN_ACCOUNTS],
+      clinicAdmins: [...INITIAL_CLINIC_ADMINS],
     };
+  } else if (!global.__smileDentalStore.clinicAdmins) {
+    global.__smileDentalStore.clinicAdmins = [...INITIAL_CLINIC_ADMINS];
   }
   return global.__smileDentalStore;
 }
@@ -537,6 +738,34 @@ export async function getBranches(): Promise<Branch[]> {
 export async function getBranchById(id: string): Promise<Branch | null> {
   const store = getStore();
   return store.branches.find((b) => b.id === id && b.active) || null;
+}
+
+export async function saveBranch(data: Partial<Branch> & { name: string }): Promise<Branch> {
+  const store = getStore();
+  const id = data.id || `branch-${data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now().toString().slice(-4)}`;
+  const existingIndex = store.branches.findIndex((b) => b.id === id);
+
+  const updatedBranch: Branch = {
+    id,
+    name: data.name.trim(),
+    city: data.city?.trim() || 'Metro City',
+    address: data.address?.trim() || 'Central Clinic Ave',
+    phone: data.phone?.trim() || '(555) 234-5678',
+    email: data.email?.trim() || 'clinic@smiledental.com',
+    openingHours: data.openingHours?.trim() || 'Mon - Sat: 8:00 AM - 6:00 PM',
+    description: data.description?.trim() || 'Specialized dental clinic facility with state-of-the-art operatories.',
+    imageUrl: data.imageUrl?.trim() || `https://picsum.photos/seed/${id}/800/600`,
+    rating: data.rating !== undefined ? Number(data.rating) : 4.9,
+    reviewsCount: data.reviewsCount !== undefined ? Number(data.reviewsCount) : 100,
+    active: data.active !== undefined ? data.active : true,
+  };
+
+  if (existingIndex >= 0) {
+    store.branches[existingIndex] = updatedBranch;
+  } else {
+    store.branches.push(updatedBranch);
+  }
+  return updatedBranch;
 }
 
 export async function getServices(): Promise<Service[]> {
@@ -566,6 +795,166 @@ export async function getDoctors(branchId?: string, serviceId?: string): Promise
 export async function getDoctorById(id: string): Promise<Doctor | null> {
   const store = getStore();
   return store.doctors.find((d) => d.id === id && d.active) || null;
+}
+
+export async function getDoctorByEmail(email: string): Promise<Doctor | null> {
+  const store = getStore();
+  return store.doctors.find((d) => d.email?.toLowerCase() === email.toLowerCase() && d.active) || null;
+}
+
+export async function saveDoctor(data: Partial<Doctor> & { name: string; specialization: string }): Promise<Doctor> {
+  const store = getStore();
+  const id = data.id || `dr-${data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now().toString().slice(-4)}`;
+  const existingIndex = store.doctors.findIndex((d) => d.id === id);
+
+  const cleanEmail = data.email?.trim() || `${data.name.toLowerCase().replace(/[^a-z0-9]+/g, '.')}@smiledental.com`;
+
+  const updatedDoc: Doctor = {
+    id,
+    name: data.name.trim(),
+    email: cleanEmail,
+    password: data.password?.trim() || 'doctor123',
+    phone: data.phone?.trim() || '(555) 234-1100',
+    title: data.title?.trim() || `Specialist in ${data.specialization}`,
+    qualification: data.qualification?.trim() || 'DDS / DMD Board Certified',
+    specialization: data.specialization.trim(),
+    experienceYears: Number(data.experienceYears) || 5,
+    bio: data.bio?.trim() || `${data.name} is a dedicated dental specialist at Smile Dental Clinic committed to gentle, evidence-based patient care.`,
+    imageUrl: data.imageUrl?.trim() || `https://picsum.photos/seed/${id}/800/800`,
+    branchIds: Array.isArray(data.branchIds) && data.branchIds.length > 0 ? data.branchIds : [store.branches[0]?.id || 'branch-downtown'],
+    serviceIds: Array.isArray(data.serviceIds) && data.serviceIds.length > 0 ? data.serviceIds : [store.services[0]?.id || 'srv-checkup-cleaning'],
+    rating: data.rating !== undefined ? Number(data.rating) : 5.0,
+    reviewsCount: data.reviewsCount !== undefined ? Number(data.reviewsCount) : 0,
+    languages: Array.isArray(data.languages) && data.languages.length > 0 ? data.languages : ['English'],
+    active: data.active !== undefined ? data.active : true,
+  };
+
+  if (existingIndex >= 0) {
+    store.doctors[existingIndex] = updatedDoc;
+  } else {
+    store.doctors.push(updatedDoc);
+
+    // Auto-create initial default schedules for newly added doctors across their assigned branches (Mon-Fri 09:00 - 17:00)
+    updatedDoc.branchIds.forEach((branchId, bIdx) => {
+      const days = bIdx === 0 ? [1, 2, 3] : [4, 5];
+      days.forEach((dayOfWeek) => {
+        store.schedules.push({
+          id: `sch-${updatedDoc.id}-${dayOfWeek}`,
+          doctorId: updatedDoc.id,
+          branchId,
+          dayOfWeek,
+          startTime: '09:00',
+          endTime: '17:00',
+          breakStart: '13:00',
+          breakEnd: '14:00',
+          active: true,
+        });
+      });
+    });
+  }
+
+  return updatedDoc;
+}
+
+export async function deleteDoctor(id: string): Promise<boolean> {
+  const store = getStore();
+  const initialCount = store.doctors.length;
+  store.doctors = store.doctors.filter((d) => d.id !== id);
+  // Also clean up doctor schedules and unavailabilities
+  store.schedules = store.schedules.filter((s) => s.doctorId !== id);
+  store.unavailabilities = store.unavailabilities.filter((u) => u.doctorId !== id);
+  return store.doctors.length < initialCount;
+}
+
+export async function getDoctorAppointments(doctorId: string): Promise<Appointment[]> {
+  const store = getStore();
+  const list = store.appointments.filter((a) => a.doctorId === doctorId);
+  return list
+    .map((apt) => hydrateAppointment(apt, store))
+    .sort((a, b) => {
+      const dateCmp = b.appointmentDate.localeCompare(a.appointmentDate);
+      if (dateCmp !== 0) return dateCmp;
+      return b.startTime.localeCompare(a.startTime);
+    });
+}
+
+export async function saveDoctorSchedule(data: Partial<DoctorSchedule> & { doctorId: string; branchId: string; dayOfWeek: number }): Promise<DoctorSchedule> {
+  const store = getStore();
+  const id = data.id || `sch-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  const existingIdx = store.schedules.findIndex((s) => s.id === id);
+
+  const schedule: DoctorSchedule = {
+    id,
+    doctorId: data.doctorId,
+    branchId: data.branchId,
+    dayOfWeek: Number(data.dayOfWeek),
+    startTime: data.startTime || '09:00',
+    endTime: data.endTime || '17:00',
+    breakStart: data.breakStart || '13:00',
+    breakEnd: data.breakEnd || '14:00',
+    active: data.active !== undefined ? data.active : true,
+  };
+
+  if (existingIdx >= 0) {
+    store.schedules[existingIdx] = schedule;
+  } else {
+    store.schedules.push(schedule);
+  }
+
+  return schedule;
+}
+
+export async function deleteDoctorSchedule(id: string): Promise<boolean> {
+  const store = getStore();
+  const initialLen = store.schedules.length;
+  store.schedules = store.schedules.filter((s) => s.id !== id);
+  return store.schedules.length < initialLen;
+}
+
+export async function saveDoctorUnavailability(data: Partial<DoctorUnavailability> & { doctorId: string; date: string; reason: string }): Promise<DoctorUnavailability> {
+  const store = getStore();
+  const id = data.id || `unavail-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  const existingIdx = store.unavailabilities.findIndex((u) => u.id === id);
+
+  const unavailability: DoctorUnavailability = {
+    id,
+    doctorId: data.doctorId,
+    date: data.date,
+    startTime: data.startTime,
+    endTime: data.endTime,
+    reason: data.reason || 'Personal Time-Off / Leave',
+  };
+
+  if (existingIdx >= 0) {
+    store.unavailabilities[existingIdx] = unavailability;
+  } else {
+    store.unavailabilities.push(unavailability);
+  }
+
+  return unavailability;
+}
+
+export async function deleteDoctorUnavailability(id: string): Promise<boolean> {
+  const store = getStore();
+  const initialLen = store.unavailabilities.length;
+  store.unavailabilities = store.unavailabilities.filter((u) => u.id !== id);
+  return store.unavailabilities.length < initialLen;
+}
+
+export async function updateAppointmentStatus(id: string, status: AppointmentStatus, notes?: string): Promise<Appointment> {
+  const store = getStore();
+  const apt = store.appointments.find((a) => a.id === id || a.appointmentCode === id);
+  if (!apt) {
+    throw new Error('Appointment not found.');
+  }
+
+  apt.status = status;
+  if (notes) {
+    apt.notes = apt.notes ? `${apt.notes} | Clinical Update: ${notes}` : notes;
+  }
+  apt.updatedAt = new Date().toISOString();
+
+  return hydrateAppointment(apt, store);
 }
 
 export async function getDoctorSchedules(doctorId?: string, branchId?: string): Promise<DoctorSchedule[]> {
@@ -598,11 +987,14 @@ export async function getDoctorUnavailability(doctorId?: string, date?: string):
   });
 }
 
-export async function getAppointments(patientEmail?: string): Promise<Appointment[]> {
+export async function getAppointments(patientEmail?: string, branchId?: string): Promise<Appointment[]> {
   const store = getStore();
   let list = [...store.appointments];
   if (patientEmail) {
     list = list.filter((a) => a.patientEmail.toLowerCase() === patientEmail.toLowerCase());
+  }
+  if (branchId) {
+    list = list.filter((a) => a.branchId === branchId);
   }
 
   // Hydrate with doctor, service, and branch names
@@ -907,15 +1299,25 @@ export async function cancelAppointment(appointmentId: string, patientEmail?: st
 /**
  * GET ALL REGISTERED PATIENTS / USERS
  */
-export async function getRegisteredUsers(): Promise<(PatientProfile & { totalAppointments: number; upcomingAppointments: number; lastVisit?: string })[]> {
+export async function getRegisteredUsers(branchId?: string): Promise<(PatientProfile & { totalAppointments: number; upcomingAppointments: number; lastVisit?: string })[]> {
   const store = getStore();
   const patientsList: (PatientProfile & { totalAppointments: number; upcomingAppointments: number; lastVisit?: string })[] = [];
   const todayStr = new Date().toISOString().split('T')[0];
 
   store.patients.forEach((patient) => {
-    const userApts = store.appointments.filter(
-      (a) => a.patientEmail.toLowerCase() === patient.email.toLowerCase()
+    const branchApts = branchId
+      ? store.appointments.filter((a) => a.branchId === branchId)
+      : store.appointments;
+
+    const userApts = branchApts.filter(
+      (a) => a.patientEmail.toLowerCase() === patient.email.toLowerCase() || a.patientId === patient.id
     );
+
+    // If scoped to a specific branch/clinic, only include if patient has appointments there or matches clinicId
+    if (branchId && userApts.length === 0 && patient.clinicId !== branchId) {
+      return;
+    }
+
     const upcoming = userApts.filter((a) => a.status === 'confirmed' && a.appointmentDate >= todayStr).length;
     const sortedApts = [...userApts].sort((a, b) => b.appointmentDate.localeCompare(a.appointmentDate));
     const lastVisit = sortedApts[0]?.appointmentDate;
@@ -1115,4 +1517,465 @@ export async function resetDatabase() {
     }
   };
 }
+
+/**
+ * ============================================================================
+ * PERSONAL ASSISTANT (PA) MANAGEMENT
+ * RULE: Strictly ONLY ONE Personal Assistant per Doctor.
+ * ============================================================================
+ */
+
+export async function getAllPersonalAssistants(): Promise<PersonalAssistant[]> {
+  const store = getStore();
+  return store.personalAssistants;
+}
+
+export async function getPersonalAssistantForDoctor(doctorId: string): Promise<PersonalAssistant | null> {
+  const store = getStore();
+  return store.personalAssistants.find((pa) => pa.doctorId === doctorId) || null;
+}
+
+export async function getPersonalAssistantByEmail(email: string): Promise<PersonalAssistant | null> {
+  const store = getStore();
+  return store.personalAssistants.find((pa) => pa.email.toLowerCase() === email.toLowerCase()) || null;
+}
+
+export async function savePersonalAssistant(
+  doctorId: string,
+  paData: {
+    name: string;
+    email: string;
+    phone: string;
+    title?: string;
+    password?: string;
+    avatarUrl?: string;
+    status?: 'active' | 'inactive' | 'on-leave';
+    permissions?: {
+      canManageAppointments: boolean;
+      canManageSchedules: boolean;
+      canViewPatientNotes: boolean;
+      canReschedule: boolean;
+      canSendReminders: boolean;
+    };
+  }
+): Promise<{ success: boolean; pa?: PersonalAssistant; error?: string }> {
+  const store = getStore();
+  const doctor = store.doctors.find((d) => d.id === doctorId);
+  if (!doctor) {
+    return { success: false, error: 'Doctor not found in clinic records.' };
+  }
+
+  const existingPAIndex = store.personalAssistants.findIndex((pa) => pa.doctorId === doctorId);
+
+  // Default permissions
+  const defaultPerms = {
+    canManageAppointments: true,
+    canManageSchedules: true,
+    canViewPatientNotes: true,
+    canReschedule: true,
+    canSendReminders: true,
+    ...(paData.permissions || {}),
+  };
+
+  if (existingPAIndex >= 0) {
+    // Update the existing single PA for this doctor
+    const current = store.personalAssistants[existingPAIndex];
+    const updatedPA: PersonalAssistant = {
+      ...current,
+      doctorName: doctor.name,
+      name: paData.name.trim(),
+      email: paData.email.trim().toLowerCase(),
+      phone: paData.phone.trim(),
+      title: paData.title || current.title || 'Personal Assistant (PA)',
+      password: paData.password || current.password || 'pa123',
+      avatarUrl: paData.avatarUrl || current.avatarUrl || `https://picsum.photos/seed/${encodeURIComponent(paData.name)}/400/400`,
+      status: paData.status || current.status || 'active',
+      permissions: defaultPerms,
+      updatedAt: new Date().toISOString(),
+    };
+    store.personalAssistants[existingPAIndex] = updatedPA;
+    return { success: true, pa: updatedPA };
+  } else {
+    // Create new PA for this doctor (ensuring max 1 PA per doctor)
+    const newPA: PersonalAssistant = {
+      id: `pa-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      doctorId: doctor.id,
+      doctorName: doctor.name,
+      name: paData.name.trim(),
+      email: paData.email.trim().toLowerCase(),
+      phone: paData.phone.trim(),
+      title: paData.title || 'Personal Assistant (PA)',
+      password: paData.password || 'pa123',
+      avatarUrl: paData.avatarUrl || `https://picsum.photos/seed/${encodeURIComponent(paData.name)}/400/400`,
+      status: paData.status || 'active',
+      permissions: defaultPerms,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    store.personalAssistants.push(newPA);
+    return { success: true, pa: newPA };
+  }
+}
+
+export async function deletePersonalAssistant(doctorId: string): Promise<{ success: boolean; message: string }> {
+  const store = getStore();
+  const initialCount = store.personalAssistants.length;
+  store.personalAssistants = store.personalAssistants.filter((pa) => pa.doctorId !== doctorId);
+  if (store.personalAssistants.length < initialCount) {
+    return { success: true, message: 'Doctor Personal Assistant account successfully removed.' };
+  }
+  return { success: false, message: 'No Personal Assistant was found for this doctor.' };
+}
+
+/**
+ * ============================================================================
+ * HOSPITAL REGISTRATION & APPLICATION SERVICE FEE
+ * Statement:
+ * "If hospital pay the application services fee and the fee is confirmed they can create one admin
+ * the link will be sent to them via email(seperate link no one other can access it only use once then link expire)"
+ * ============================================================================
+ */
+
+export async function getHospitalRegistrations(): Promise<HospitalRegistration[]> {
+  const store = getStore();
+  return store.hospitalRegistrations;
+}
+
+export async function getAdminAccounts(): Promise<AdminAccount[]> {
+  const store = getStore();
+  return store.adminAccounts;
+}
+
+export async function registerHospitalAndPayFee(payload: {
+  hospitalName: string;
+  licenseNumber: string;
+  directorName: string;
+  officialEmail: string;
+  phone: string;
+  city: string;
+  address: string;
+  suiteCount?: number;
+  paymentMethod?: string;
+  registrationFeeAmount?: number;
+}): Promise<{
+  success: boolean;
+  registration: HospitalRegistration;
+  inviteToken: AdminInviteToken;
+  inviteUrl: string;
+  receipt: {
+    transactionId: string;
+    amount: number;
+    currency: string;
+    paidAt: string;
+    statement: string;
+  };
+}> {
+  const store = getStore();
+  const hospitalId = `hosp-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+  const tokenString = `adm_inv_${Math.random().toString(36).substring(2, 12)}_${Date.now()}_sec`;
+  const transactionId = `TXN-HOSP-${Math.floor(1000000 + Math.random() * 9000000)}`;
+  const paidAt = new Date().toISOString();
+  
+  // Expiration: 48 hours from generation
+  const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+  const feeAmount = payload.registrationFeeAmount || 499.00;
+
+  const newRegistration: HospitalRegistration = {
+    id: hospitalId,
+    hospitalName: payload.hospitalName.trim(),
+    licenseNumber: payload.licenseNumber.trim(),
+    directorName: payload.directorName.trim(),
+    officialEmail: payload.officialEmail.trim().toLowerCase(),
+    phone: payload.phone.trim(),
+    city: payload.city.trim(),
+    address: payload.address.trim(),
+    suiteCount: payload.suiteCount || 6,
+    registrationFeeAmount: feeAmount,
+    feeCurrency: 'USD',
+    feePaymentStatus: 'verified',
+    paymentMethod: payload.paymentMethod || 'Credit Card (Corporate)',
+    transactionId,
+    paidAt,
+    adminInviteToken: tokenString,
+    adminInviteTokenExpiresAt: expiresAt,
+    adminInviteTokenUsed: false,
+    createdAt: paidAt,
+  };
+
+  const newInviteToken: AdminInviteToken = {
+    token: tokenString,
+    hospitalId,
+    hospitalName: payload.hospitalName.trim(),
+    officialEmail: payload.officialEmail.trim().toLowerCase(),
+    directorName: payload.directorName.trim(),
+    expiresAt,
+    used: false,
+  };
+
+  store.hospitalRegistrations.unshift(newRegistration);
+  store.adminInviteTokens.push(newInviteToken);
+
+  const inviteUrl = `/hospital/setup-admin?token=${tokenString}`;
+  const statement = 'If hospital pay the application services fee and the fee is confirmed they can create one admin the link will be sent to them via email(seperate link no one other can access it only use once then link expire)';
+
+  return {
+    success: true,
+    registration: newRegistration,
+    inviteToken: newInviteToken,
+    inviteUrl,
+    receipt: {
+      transactionId,
+      amount: feeAmount,
+      currency: 'USD',
+      paidAt,
+      statement,
+    },
+  };
+}
+
+/**
+ * Verify Single-Use Admin Invite Token
+ */
+export async function verifyAdminInviteToken(token: string): Promise<{
+  valid: boolean;
+  tokenData?: AdminInviteToken;
+  hospital?: HospitalRegistration;
+  reason?: 'not_found' | 'expired' | 'already_used';
+  message: string;
+}> {
+  const store = getStore();
+  const invite = store.adminInviteTokens.find((t) => t.token === token);
+
+  if (!invite) {
+    return {
+      valid: false,
+      reason: 'not_found',
+      message: 'Invalid administrator activation token. No matching hospital registration found.',
+    };
+  }
+
+  if (invite.used) {
+    return {
+      valid: false,
+      reason: 'already_used',
+      tokenData: invite,
+      message: 'This exclusive administrator setup link has already been used and is now permanently expired. No other user can access or reuse this link.',
+    };
+  }
+
+  const now = new Date();
+  const exp = new Date(invite.expiresAt);
+  if (now > exp) {
+    return {
+      valid: false,
+      reason: 'expired',
+      tokenData: invite,
+      message: 'This administrator activation invitation link has expired. Please contact hospital licensing to request re-validation.',
+    };
+  }
+
+  const hospital = store.hospitalRegistrations.find((h) => h.id === invite.hospitalId);
+
+  return {
+    valid: true,
+    tokenData: invite,
+    hospital,
+    message: 'Valid single-use administrator activation token.',
+  };
+}
+
+/**
+ * Create Primary Admin Account using Single-Use Invite Token
+ * Permanently marks the token as used so no one else can ever access it.
+ */
+export async function createAdminFromInviteToken(
+  token: string,
+  adminData: {
+    name: string;
+    email: string;
+    password: string;
+    phone?: string;
+  }
+): Promise<{
+  success: boolean;
+  admin?: AdminAccount;
+  error?: string;
+  message?: string;
+}> {
+  const store = getStore();
+  const verification = await verifyAdminInviteToken(token);
+
+  if (!verification.valid || !verification.tokenData) {
+    return {
+      success: false,
+      error: verification.message,
+    };
+  }
+
+  const invite = verification.tokenData;
+  const hospital = verification.hospital || store.hospitalRegistrations.find((h) => h.id === invite.hospitalId);
+
+  const usedTimestamp = new Date().toISOString();
+
+  // Create Primary Admin Account
+  const newAdmin: AdminAccount = {
+    id: `adm-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+    hospitalId: invite.hospitalId,
+    hospitalName: invite.hospitalName,
+    name: adminData.name.trim(),
+    email: adminData.email.trim().toLowerCase(),
+    password: adminData.password,
+    role: 'primary_admin',
+    phone: adminData.phone?.trim() || hospital?.phone,
+    createdAt: usedTimestamp,
+  };
+
+  // Permanently burn/expire the single-use token
+  invite.used = true;
+  invite.usedAt = usedTimestamp;
+  invite.createdAdminEmail = adminData.email.trim().toLowerCase();
+  invite.createdAdminName = adminData.name.trim();
+
+  // Update Hospital registration
+  if (hospital) {
+    hospital.adminInviteTokenUsed = true;
+    hospital.adminCreatedEmail = adminData.email.trim().toLowerCase();
+    hospital.adminCreatedAt = usedTimestamp;
+  }
+
+  store.adminAccounts.push(newAdmin);
+
+  return {
+    success: true,
+    admin: newAdmin,
+    message: 'Primary Hospital Administrator account successfully created. This single-use activation link has now expired.',
+  };
+}
+
+/**
+ * Application Administrator: Provision Clinical Admin Panel for a registered hospital
+ * Requirement: "the clinical admin panel can only be created by admin of the application"
+ */
+export async function provisionClinicalAdminPanel(
+  hospitalId: string,
+  provisionedBy = 'Application Super Admin'
+): Promise<{
+  success: boolean;
+  hospital?: HospitalRegistration;
+  branch?: Branch;
+  inviteUrl?: string;
+  error?: string;
+  message?: string;
+}> {
+  const store = getStore();
+  const hospital = store.hospitalRegistrations.find((h) => h.id === hospitalId);
+  if (!hospital) {
+    return { success: false, error: 'Hospital registration record not found.' };
+  }
+
+  const now = new Date().toISOString();
+  hospital.panelProvisioned = true;
+  hospital.panelProvisionedAt = now;
+  hospital.panelProvisionedBy = provisionedBy;
+
+  // Ensure branch studio exists for this hospital
+  let branch = store.branches.find(
+    (b) => b.id === hospital.branchId || b.name.toLowerCase() === hospital.hospitalName.toLowerCase()
+  );
+  if (!branch) {
+    const branchId = `branch-${hospital.hospitalName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now().toString().slice(-4)}`;
+    branch = {
+      id: branchId,
+      name: hospital.hospitalName,
+      city: hospital.city,
+      address: hospital.address,
+      phone: hospital.phone,
+      email: hospital.officialEmail,
+      openingHours: 'Mon - Fri: 8:00 AM - 6:00 PM, Sat: 9:00 AM - 2:00 PM',
+      description: `${hospital.hospitalName} clinical center licensed under ${hospital.licenseNumber}.`,
+      imageUrl: `https://picsum.photos/seed/${branchId}/800/600`,
+      rating: 5.0,
+      reviewsCount: 1,
+      active: true,
+    };
+    store.branches.push(branch);
+    hospital.branchId = branchId;
+  } else {
+    hospital.branchId = branch.id;
+  }
+
+  const inviteUrl = `/hospital/setup-admin?token=${hospital.adminInviteToken}`;
+
+  return {
+    success: true,
+    hospital,
+    branch,
+    inviteUrl,
+    message: `Clinical Admin Panel for "${hospital.hospitalName}" successfully provisioned and authorized by Application Admin. Single-use invitation link is active.`,
+  };
+}
+
+/**
+ * Clinic Admin Management Functions
+ * Requirement: "the clinic admin account can be created by admin"
+ */
+export async function getClinicAdmins(): Promise<ClinicAdminAccount[]> {
+  const store = getStore();
+  return store.clinicAdmins || [];
+}
+
+export async function getClinicAdminByEmail(email: string): Promise<ClinicAdminAccount | null> {
+  const store = getStore();
+  const clean = email.trim().toLowerCase();
+  return store.clinicAdmins?.find((c) => c.email.toLowerCase() === clean) || null;
+}
+
+export async function createClinicAdmin(data: {
+  name: string;
+  email: string;
+  password?: string;
+  phone?: string;
+  clinicId: string;
+}): Promise<{
+  success: boolean;
+  clinicAdmin?: ClinicAdminAccount;
+  error?: string;
+}> {
+  const store = getStore();
+  if (!store.clinicAdmins) store.clinicAdmins = [...INITIAL_CLINIC_ADMINS];
+
+  const cleanEmail = data.email.trim().toLowerCase();
+  if (store.clinicAdmins.some((c) => c.email.toLowerCase() === cleanEmail)) {
+    return { success: false, error: 'A clinic administrator with this email already exists.' };
+  }
+
+  const branch = store.branches.find((b) => b.id === data.clinicId);
+  const newClinicAdmin: ClinicAdminAccount = {
+    id: `clinic-adm-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+    name: data.name.trim(),
+    email: cleanEmail,
+    password: data.password?.trim() || 'smile1234',
+    phone: data.phone?.trim() || '(555) 234-1100',
+    clinicId: data.clinicId,
+    clinicName: branch?.name || 'Assigned Studio Branch',
+    role: 'clinic_admin',
+    createdAt: new Date().toISOString(),
+  };
+
+  store.clinicAdmins.push(newClinicAdmin);
+
+  return {
+    success: true,
+    clinicAdmin: newClinicAdmin,
+  };
+}
+
+export async function deleteClinicAdmin(id: string): Promise<boolean> {
+  const store = getStore();
+  if (!store.clinicAdmins) return false;
+  const initialLen = store.clinicAdmins.length;
+  store.clinicAdmins = store.clinicAdmins.filter((c) => c.id !== id && c.email.toLowerCase() !== id.toLowerCase());
+  return store.clinicAdmins.length < initialLen;
+}
+
 

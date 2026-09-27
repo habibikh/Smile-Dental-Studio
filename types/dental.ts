@@ -31,6 +31,9 @@ export interface Service {
 export interface Doctor {
   id: string;
   name: string;
+  email?: string;
+  password?: string;
+  phone?: string;
   title: string;
   qualification: string;
   specialization: string;
@@ -117,6 +120,8 @@ export interface PatientProfile {
   fullName: string;
   email: string;
   phone: string;
+  role?: 'patient' | 'clinic_admin' | 'app_admin' | 'doctor';
+  clinicId?: string; // Associated branch/clinic ID if clinic_admin
   dateOfBirth?: string;
   gender?: string;
   address?: string;
@@ -184,4 +189,94 @@ export interface AdminStats {
   upcomingAppointments: number;
   confirmedAppointments: number;
   cancelledAppointments: number;
+}
+
+// Personal Assistant (Strictly 1 PA per Doctor)
+export interface PersonalAssistant {
+  id: string;
+  doctorId: string;
+  doctorName?: string;
+  name: string;
+  title: string; // e.g., "Certified Dental Assistant (CDA)", "Clinical PA"
+  email: string;
+  phone: string;
+  password?: string;
+  avatarUrl?: string;
+  status: 'active' | 'inactive' | 'on-leave';
+  permissions: {
+    canManageAppointments: boolean;
+    canManageSchedules: boolean;
+    canViewPatientNotes: boolean;
+    canReschedule: boolean;
+    canSendReminders: boolean;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Hospital Registration & Application Services Fee
+export interface HospitalRegistration {
+  id: string;
+  hospitalName: string;
+  licenseNumber: string;
+  directorName: string;
+  officialEmail: string;
+  phone: string;
+  city: string;
+  address: string;
+  suiteCount: number;
+  registrationFeeAmount: number; // e.g. 499 (USD)
+  feeCurrency: string; // "USD"
+  feePaymentStatus: 'pending' | 'paid' | 'verified';
+  paymentMethod: string; // "Credit Card" | "Bank Wire" | "Direct ACH"
+  transactionId: string;
+  paidAt: string;
+  adminInviteToken: string;
+  adminInviteTokenExpiresAt: string;
+  adminInviteTokenUsed: boolean;
+  adminCreatedEmail?: string;
+  adminCreatedAt?: string;
+  panelProvisioned?: boolean;
+  panelProvisionedAt?: string;
+  panelProvisionedBy?: string;
+  branchId?: string;
+  createdAt: string;
+}
+
+// Single-Use Admin Invite Token
+export interface AdminInviteToken {
+  token: string;
+  hospitalId: string;
+  hospitalName: string;
+  officialEmail: string;
+  directorName: string;
+  expiresAt: string;
+  used: boolean;
+  usedAt?: string;
+  createdAdminEmail?: string;
+  createdAdminName?: string;
+}
+
+export interface AdminAccount {
+  id: string;
+  hospitalId: string;
+  hospitalName: string;
+  name: string;
+  email: string;
+  password?: string;
+  role: 'primary_admin' | 'assistant_admin';
+  phone?: string;
+  createdAt: string;
+}
+
+export interface ClinicAdminAccount {
+  id: string;
+  name: string;
+  email: string;
+  password?: string;
+  phone?: string;
+  clinicId: string;
+  clinicName?: string;
+  role: 'clinic_admin';
+  createdAt: string;
 }

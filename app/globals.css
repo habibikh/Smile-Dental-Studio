@@ -56,3 +56,44 @@
   white-space: nowrap;
 }
 
+/* ==========================================================================
+   Lightweight, GPU-Accelerated Looping CSS Loading Spinner
+   Optimized for low resource consumption using transform3d
+   ========================================================================== */
+@keyframes clinic-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes clinic-pulse-subtle {
+  0%, 100% {
+    opacity: 0.25;
+    transform: scale(0.96);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.02);
+  }
+}
+
+.clinic-spinner {
+  display: inline-block;
+  border-radius: 9999px;
+  border-style: solid;
+  border-color: rgba(13, 148, 136, 0.2);
+  border-top-color: #0f766e;
+  animation: clinic-spin 0.75s cubic-bezier(0.42, 0, 0.58, 1) infinite;
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+.clinic-spinner-accent {
+  border-color: rgba(255, 255, 255, 0.25);
+  border-top-color: #ffffff;
+}
+
+

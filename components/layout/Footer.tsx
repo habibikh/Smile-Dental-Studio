@@ -143,11 +143,6 @@ export default function Footer() {
                   Patient Portal Login
                 </Link>
               </li>
-              <li>
-                <Link href="/admin" className="hover:text-teal-400 transition-colors">
-                  Admin & Data Manager
-                </Link>
-              </li>
             </ul>
           </div>
         </div>

@@ -9,8 +9,9 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const search = searchParams.get('q')?.toLowerCase() || '';
+    const branchId = searchParams.get('branchId') || searchParams.get('clinicId') || undefined;
 
-    let users = await getRegisteredUsers();
+    let users = await getRegisteredUsers(branchId);
 
     if (search) {
       users = users.filter(

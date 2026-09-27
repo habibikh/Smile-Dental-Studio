@@ -6,8 +6,9 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const email = searchParams.get('patientEmail') || searchParams.get('email') || undefined;
+    const branchId = searchParams.get('branchId') || searchParams.get('clinicId') || undefined;
 
-    const appointments = await getAppointments(email);
+    const appointments = await getAppointments(email, branchId);
     return NextResponse.json({ appointments });
   } catch (error: any) {
     console.error('Error getting appointments:', error);

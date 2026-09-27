@@ -19,17 +19,25 @@ import { useAuth } from '@/context/AuthContext';
 
 export default function Navbar() {
   const pathname = usePathname();
-  const { user, logout, isAuthenticated } = useAuth();
+  const { user, logout, isAuthenticated, isPatient, isClinicAdmin, isAppAdmin, switchRole } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
+  // Navigation links for general visitors
   const navLinks = [
     { href: '/', label: 'Home' },
     { href: '/services', label: 'Treatments' },
     { href: '/doctors', label: 'Specialists' },
     { href: '/branches', label: 'Studios' },
     { href: '/dashboard', label: 'My Visits' },
-    { href: '/admin', label: 'Admin' },
+    ...(!isPatient
+      ? [
+          {
+            href: '/admin',
+            label: isClinicAdmin ? 'Clinic Admin' : 'Admin Panel',
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -105,20 +113,35 @@ export default function Navbar() {
                       <Calendar className="w-4 h-4 text-teal-600" />
                       My Appointments
                     </Link>
-                    <Link
-                      href="/admin"
-                      onClick={() => setUserMenuOpen(false)}
-                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:text-teal-800 hover:bg-teal-50/50 transition-colors font-medium"
-                    >
-                      <Database className="w-4 h-4 text-teal-600" />
-                      Admin & Users Data
-                    </Link>
+
+                    {/* Clinical & Administrative Portals strictly for authorized staff */}
+                    {!isPatient && (
+                      <>
+                        <Link
+                          href="/doctor"
+                          onClick={() => setUserMenuOpen(false)}
+                          className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:text-teal-800 hover:bg-teal-50/50 transition-colors font-medium"
+                        >
+                          <Users className="w-4 h-4 text-teal-600" />
+                          Doctor Portal & Shifts
+                        </Link>
+                        <Link
+                          href="/admin"
+                          onClick={() => setUserMenuOpen(false)}
+                          className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:text-teal-800 hover:bg-teal-50/50 transition-colors font-medium"
+                        >
+                          <Database className="w-4 h-4 text-teal-600" />
+                          {isClinicAdmin ? 'Clinic Admin Panel' : 'Application Admin Panel'}
+                        </Link>
+                      </>
+                    )}
+
                     <button
                       onClick={() => {
                         logout();
                         setUserMenuOpen(false);
                       }}
-                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-rose-600 hover:bg-rose-50 text-left transition-colors font-semibold cursor-pointer"
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-rose-600 hover:bg-rose-50 text-left transition-colors font-semibold cursor-pointer border-t border-slate-100 mt-1"
                     >
                       <LogOut className="w-4 h-4" />
                       Sign Out

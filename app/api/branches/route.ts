@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getBranches, getBranchById } from '@/lib/db';
+import { getBranches, getBranchById, saveBranch } from '@/lib/db';
 
 export async function GET(req: NextRequest) {
   try {
@@ -19,5 +19,19 @@ export async function GET(req: NextRequest) {
   } catch (error: any) {
     console.error('Error fetching branches:', error);
     return NextResponse.json({ error: error.message || 'Failed to fetch branches' }, { status: 500 });
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    if (!body || !body.name) {
+      return NextResponse.json({ error: 'Branch name is required' }, { status: 400 });
+    }
+    const branch = await saveBranch(body);
+    return NextResponse.json({ success: true, branch });
+  } catch (error: any) {
+    console.error('Error saving branch:', error);
+    return NextResponse.json({ error: error.message || 'Failed to save branch' }, { status: 500 });
   }
 }

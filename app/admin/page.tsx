@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import SmileAssistant from '@/components/ai/SmileAssistant';
@@ -18,6 +20,7 @@ import {
   Plus,
   Trash2,
   Edit,
+  Edit3,
   CheckCircle2,
   AlertCircle,
   Clock,
@@ -37,7 +40,13 @@ import {
   Smile,
   BarChart3,
   TrendingUp,
-  PieChart
+  PieChart,
+  CalendarCheck,
+  Briefcase,
+  Camera,
+  UserCheck,
+  BadgeCheck,
+  Lock
 } from 'lucide-react';
 import AdminChartsSection from '@/components/admin/AdminChartsSection';
 import {
@@ -47,12 +56,36 @@ import {
   Branch,
   Service,
   AdminStats,
-  DatabaseDataset
+  DatabaseDataset,
+  PersonalAssistant,
+  HospitalRegistration,
+  ClinicAdminAccount
 } from '@/types/dental';
+import { useAuth } from '@/context/AuthContext';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import PatientAccessRestricted from '@/components/admin/PatientAccessRestricted';
+import HospitalProvisioningTab from '@/components/admin/HospitalProvisioningTab';
+import ClinicProfileAndImagesTab from '@/components/admin/ClinicProfileAndImagesTab';
+import ClinicEmployeesTab from '@/components/admin/ClinicEmployeesTab';
+import ClinicAdminsTab from '@/components/admin/ClinicAdminsTab';
+
+const DOCTOR_PHOTO_PRESETS = [
+  { name: 'Dr. Sarah', url: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&q=80&w=800' },
+  { name: 'Dr. Ahmed', url: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=800' },
+  { name: 'Dr. Elena', url: 'https://images.unsplash.com/photo-1594824813583-09b9f7836359?auto=format&fit=crop&q=80&w=800' },
+  { name: 'Dr. Marcus', url: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&q=80&w=800' },
+];
 
 export default function AdminPage() {
-  // Navigation Tabs: 'analytics' | 'users' | 'data' | 'appointments' | 'doctors' | 'branches' | 'services'
-  const [activeTab, setActiveTab] = useState<'analytics' | 'users' | 'data' | 'appointments' | 'doctors' | 'branches' | 'services'>('analytics');
+  const { user, isPatient, isClinicAdmin, isAppAdmin, switchRole } = useAuth();
+
+  // Navigation Tabs
+  const [activeTab, setActiveTab] = useState<
+    'analytics' | 'users' | 'doctors' | 'clinic_admins' | 'employees' | 'clinic_profile' | 'appointments' | 'hospital_provisioning' | 'branches' | 'services' | 'data'
+  >('analytics');
+
+  // Clinic scoping state
+  const [selectedClinicId, setSelectedClinicId] = useState<string>('branch-downtown');
 
   // Core Data States
   const [stats, setStats] = useState<AdminStats | null>(null);
@@ -61,6 +94,9 @@ export default function AdminPage() {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [services, setServices] = useState<Service[]>([]);
+  const [personalAssistants, setPersonalAssistants] = useState<PersonalAssistant[]>([]);
+  const [hospitalRegistrations, setHospitalRegistrations] = useState<HospitalRegistration[]>([]);
+  const [clinicAdmins, setClinicAdmins] = useState<ClinicAdminAccount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
 
@@ -84,6 +120,25 @@ export default function AdminPage() {
     medicalNotes: '',
   });
 
+  // Doctor Management State
+  const [isAddDoctorModalOpen, setIsAddDoctorModalOpen] = useState(false);
+  const [editingDoctorId, setEditingDoctorId] = useState<string | null>(null);
+  const [doctorFormData, setDoctorFormData] = useState({
+    name: '',
+    email: '',
+    password: 'doctor123',
+    phone: '(555) 234-1100',
+    title: 'Specialist Dentist',
+    qualification: 'DDS / DMD Board Certified',
+    specialization: 'Cosmetic & Aesthetic Dentistry',
+    experienceYears: 8,
+    bio: '',
+    imageUrl: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&q=80&w=800',
+    branchIds: ['branch-downtown'],
+    serviceIds: ['srv-checkup-cleaning'],
+    languages: 'English',
+  });
+
   // Re-upload JSON States
   const [jsonUploadCategory, setJsonUploadCategory] = useState<'all' | 'doctors' | 'branches' | 'services' | 'schedules' | 'patients'>('all');
   const [jsonInputText, setJsonInputText] = useState('');
@@ -101,13 +156,16 @@ export default function AdminPage() {
   // Fetch initial data
   const loadAllAdminData = React.useCallback(async () => {
     try {
-      const [dataRes, usersRes, aptsRes, docRes, branchRes, srvRes] = await Promise.all([
-        fetch('/api/admin/data').then((r) => r.json()),
-        fetch('/api/admin/users').then((r) => r.json()),
-        fetch('/api/appointments').then((r) => r.json()),
-        fetch('/api/doctors').then((r) => r.json()),
-        fetch('/api/branches').then((r) => r.json()),
-        fetch('/api/services').then((r) => r.json()),
+      const [dataRes, usersRes, aptsRes, docRes, branchRes, srvRes, paRes, hospRes, clinicAdminsRes] = await Promise.all([
+        fetch('/api/admin/data').then((r) => r.json()).catch(() => ({})),
+        fetch('/api/admin/users').then((r) => r.json()).catch(() => ({})),
+        fetch('/api/appointments').then((r) => r.json()).catch(() => ({})),
+        fetch('/api/doctors').then((r) => r.json()).catch(() => ({})),
+        fetch('/api/branches').then((r) => r.json()).catch(() => ({})),
+        fetch('/api/services').then((r) => r.json()).catch(() => ({})),
+        fetch('/api/doctors/pa').then((r) => r.json()).catch(() => ({})),
+        fetch('/api/hospital/register').then((r) => r.json()).catch(() => ({})),
+        fetch('/api/admin/clinic-admins').then((r) => r.json()).catch(() => ({})),
       ]);
 
       if (dataRes.stats) setStats(dataRes.stats);
@@ -116,6 +174,9 @@ export default function AdminPage() {
       if (docRes.doctors) setDoctors(docRes.doctors);
       if (branchRes.branches) setBranches(branchRes.branches);
       if (srvRes.services) setServices(srvRes.services);
+      if (paRes.personalAssistants) setPersonalAssistants(paRes.personalAssistants);
+      if (hospRes.registrations) setHospitalRegistrations(hospRes.registrations);
+      if (clinicAdminsRes.clinicAdmins) setClinicAdmins(clinicAdminsRes.clinicAdmins);
     } catch (err: unknown) {
       console.error('Failed to load admin data:', err);
       showNotification('error', 'Failed to load clinic dataset. Please refresh.');
@@ -130,6 +191,17 @@ export default function AdminPage() {
     }, 0);
     return () => clearTimeout(timer);
   }, [loadAllAdminData]);
+
+  // Sync selected clinic with logged-in user profile
+  useEffect(() => {
+    if (user?.clinicId) {
+      const targetId = user.clinicId;
+      const t = setTimeout(() => {
+        setSelectedClinicId(targetId);
+      }, 0);
+      return () => clearTimeout(t);
+    }
+  }, [user?.clinicId]);
 
   // Handle Export Full Database JSON
   const handleExportDatabase = async () => {
@@ -330,8 +402,150 @@ export default function AdminPage() {
     }
   };
 
+  // Handle Save / Create Doctor Account
+  const handleSaveDoctor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!doctorFormData.name.trim() || !doctorFormData.specialization.trim()) {
+      showNotification('error', 'Doctor Name and Specialization are required.');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/doctors', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingDoctorId || undefined,
+          name: doctorFormData.name,
+          email: doctorFormData.email,
+          password: doctorFormData.password,
+          phone: doctorFormData.phone,
+          title: doctorFormData.title,
+          qualification: doctorFormData.qualification,
+          specialization: doctorFormData.specialization,
+          experienceYears: Number(doctorFormData.experienceYears),
+          bio: doctorFormData.bio,
+          imageUrl: doctorFormData.imageUrl,
+          branchIds: doctorFormData.branchIds,
+          serviceIds: doctorFormData.serviceIds,
+          languages: doctorFormData.languages.split(',').map((s) => s.trim()).filter(Boolean),
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showNotification('success', editingDoctorId ? `Doctor "${doctorFormData.name}" updated.` : `Doctor account for "${doctorFormData.name}" created successfully.`);
+        setIsAddDoctorModalOpen(false);
+        setEditingDoctorId(null);
+        setDoctorFormData({
+          name: '',
+          email: '',
+          password: 'doctor123',
+          phone: '(555) 234-1100',
+          title: 'Specialist Dentist',
+          qualification: 'DDS / DMD Board Certified',
+          specialization: 'Cosmetic & Aesthetic Dentistry',
+          experienceYears: 8,
+          bio: '',
+          imageUrl: 'https://picsum.photos/seed/newdentist/800/800',
+          branchIds: ['branch-downtown'],
+          serviceIds: ['srv-checkup-cleaning'],
+          languages: 'English',
+        });
+        await loadAllAdminData();
+      } else {
+        throw new Error(data.error || 'Failed to save doctor');
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Save failed';
+      showNotification('error', msg);
+    }
+  };
+
+  // Open Edit Doctor Modal
+  const handleOpenEditDoctor = (doc: Doctor) => {
+    setEditingDoctorId(doc.id);
+    setDoctorFormData({
+      name: doc.name,
+      email: doc.email || `${doc.name.toLowerCase().replace(/[^a-z0-9]+/g, '.')}@smiledental.com`,
+      password: doc.password || 'doctor123',
+      phone: doc.phone || '(555) 234-1100',
+      title: doc.title,
+      qualification: doc.qualification,
+      specialization: doc.specialization,
+      experienceYears: doc.experienceYears,
+      bio: doc.bio,
+      imageUrl: doc.imageUrl,
+      branchIds: doc.branchIds,
+      serviceIds: doc.serviceIds,
+      languages: doc.languages.join(', '),
+    });
+    setIsAddDoctorModalOpen(true);
+  };
+
+  // Handle Delete Doctor
+  const handleDeleteDoctor = async (doctorId: string, doctorName: string) => {
+    if (!confirm(`Are you sure you want to delete doctor "${doctorName}" and remove their schedule availability from the hospital?`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/doctors?id=${doctorId}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (data.success) {
+        showNotification('success', `Doctor "${doctorName}" deleted from clinic roster.`);
+        await loadAllAdminData();
+      } else {
+        throw new Error(data.error || 'Failed to delete doctor');
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Delete failed';
+      showNotification('error', msg);
+    }
+  };
+
+  // Effective active branch object
+  const activeBranch = branches.find((b) => b.id === selectedClinicId) || branches[0] || {
+    id: 'branch-downtown',
+    name: 'Smile Dental - Downtown Metro',
+    city: 'Downtown Metro',
+    address: '450 Grand Avenue, Suite 800, New York, NY 10001',
+    phone: '(555) 234-5678',
+    email: 'downtown@smiledental.com',
+    openingHours: 'Mon - Fri: 8:00 AM - 7:00 PM | Sat: 9:00 AM - 4:00 PM',
+    description: 'Flagship clinical suite equipped with 3D CBCT, aesthetic lasers, and spa amenities.',
+    imageUrl: 'https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&q=80&w=1200',
+    facilities: ['3D CBCT Imaging', 'Sedation Suite', 'Private Recovery Room'],
+  };
+
+  // Scoped doctors for this clinic (or all if app admin selected 'all')
+  const visibleDoctors =
+    isAppAdmin && selectedClinicId === 'all'
+      ? doctors
+      : doctors.filter((d) => d.branchIds?.includes(selectedClinicId));
+
+  // Scoped appointments for this clinic
+  const visibleAppointments =
+    isAppAdmin && selectedClinicId === 'all'
+      ? appointments
+      : appointments.filter((a) => a.branchId === selectedClinicId);
+
+  // Scoped patients for this clinic (patients who have appointments at this branch or whose clinicId matches)
+  const visibleUsers =
+    isAppAdmin && selectedClinicId === 'all'
+      ? users
+      : users.filter(
+          (u) =>
+            visibleAppointments.some(
+              (a) => a.patientEmail.toLowerCase() === u.email.toLowerCase() || a.patientId === u.id
+            ) ||
+            !u.clinicId ||
+            u.clinicId === selectedClinicId
+        );
+
   // Filtered Users
-  const filteredUsers = users.filter((u) => {
+  const filteredUsers = visibleUsers.filter((u) => {
     const q = userSearch.toLowerCase().trim();
     if (!q) return true;
     return (
@@ -344,7 +558,7 @@ export default function AdminPage() {
   });
 
   // Filtered Appointments
-  const filteredAppointments = appointments.filter((apt) => {
+  const filteredAppointments = visibleAppointments.filter((apt) => {
     const q = appointmentSearch.toLowerCase().trim();
     if (q) {
       const match =
@@ -363,6 +577,41 @@ export default function AdminPage() {
     }
     return true;
   });
+
+  // PATIENT ACCESS RESTRICTION: Patients cannot view the administrative dashboard
+  if (isPatient) {
+    return (
+      <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col">
+        <Navbar />
+        <main className="flex-1 pt-24 pb-20">
+          <PatientAccessRestricted
+            patientName={user?.fullName}
+            patientEmail={user?.email}
+            onSwitchToClinicAdmin={() => switchRole('clinic_admin', selectedClinicId)}
+            onSwitchToAppAdmin={() => switchRole('app_admin')}
+          />
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  // LOADING SPINNER STATE: Visually appealing, looping CSS animation while authenticating or fetching data
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col">
+        <Navbar />
+        <main className="flex-1 flex items-center justify-center pt-24 pb-20">
+          <LoadingSpinner
+            size="lg"
+            variant="teal"
+            label="Authenticating administrative session & loading clinic dataset..."
+          />
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col selection:bg-teal-100 selection:text-teal-900">
@@ -398,37 +647,57 @@ export default function AdminPage() {
             </div>
           )}
 
-          {/* Admin Header */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+          {/* Admin Header & Clinic Identity */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6">
             <div>
-              <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
-                Clinic Data & Patient Management
+              <div className="flex items-center gap-2 mb-1">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-900 text-white">
+                  <Shield className="w-3.5 h-3.5 text-teal-400" />
+                  {isAppAdmin ? 'Application Super Admin' : 'Clinic Studio Admin Panel'}
+                </span>
+                {isClinicAdmin && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-teal-50 text-teal-800 border border-teal-200">
+                    <CheckCircle2 className="w-3 h-3 text-teal-600" />
+                    Verified Clinical Operator
+                  </span>
+                )}
+              </div>
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight">
+                {isAppAdmin && selectedClinicId === 'all'
+                  ? 'Application Central Admin & Network'
+                  : `${activeBranch?.name.replace('Smile Dental - ', '')} Management`}
               </h1>
-              <p className="text-sm text-slate-600 mt-1">
-                Inspect registered users, manage schedules, and re-upload complete clinic datasets.
+              <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl">
+                {isClinicAdmin
+                  ? `Clinical workspace for ${activeBranch?.name}: view and manage your clinic's registered patients, doctors, medical assistants, and studio photos.`
+                  : 'Manage hospitals, approve service fees, provision one-time administrative links, and review all clinical branch operations.'}
               </p>
             </div>
 
             {/* Quick Action Buttons */}
             <div className="flex flex-wrap items-center gap-2.5">
-              <button
-                onClick={handleExportDatabase}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-800 text-xs font-semibold shadow-xs transition-all cursor-pointer"
-                title="Download JSON dataset backup"
-              >
-                <Download className="w-3.5 h-3.5 text-teal-600" />
-                <span>Export JSON</span>
-              </button>
+              {isAppAdmin && (
+                <>
+                  <button
+                    onClick={handleExportDatabase}
+                    className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-800 text-xs font-semibold shadow-xs transition-all cursor-pointer"
+                    title="Download JSON dataset backup"
+                  >
+                    <Download className="w-3.5 h-3.5 text-teal-600" />
+                    <span>Export JSON</span>
+                  </button>
 
-              <button
-                onClick={handleResetDatabase}
-                disabled={isUploading}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-rose-200 hover:bg-rose-50 text-rose-700 text-xs font-semibold shadow-xs transition-all cursor-pointer disabled:opacity-50"
-                title="Reset to seed data"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                <span>Reset Data</span>
-              </button>
+                  <button
+                    onClick={handleResetDatabase}
+                    disabled={isUploading}
+                    className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-white border border-rose-200 hover:bg-rose-50 text-rose-700 text-xs font-semibold shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                    title="Reset to seed data"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Reset</span>
+                  </button>
+                </>
+              )}
 
               <button
                 onClick={() => setIsAddUserModalOpen(true)}
@@ -440,8 +709,50 @@ export default function AdminPage() {
             </div>
           </div>
 
+          {/* Active Clinic Scope Banner & Studio Switcher */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 mb-8 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-teal-50 border border-teal-200 text-teal-700 flex items-center justify-center shrink-0">
+                <Building2 className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-teal-800 bg-teal-50 px-2.5 py-0.5 rounded-full border border-teal-200">
+                    Active Clinic Scope
+                  </span>
+                  <h2 className="text-base sm:text-lg font-bold text-slate-900">
+                    {isAppAdmin && selectedClinicId === 'all'
+                      ? 'Global Clinic Network (All Studios)'
+                      : activeBranch?.name}
+                  </h2>
+                </div>
+                <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-2 flex-wrap">
+                  <span>📍 {activeBranch?.address || 'Metro Clinical Facility'}</span>
+                  <span>•</span>
+                  <span>📞 {activeBranch?.phone || '(555) 234-5678'}</span>
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5 self-start md:self-auto shrink-0 bg-slate-50 p-1.5 rounded-xl border border-slate-200">
+              <span className="text-xs font-bold text-slate-600 pl-2">Switch Studio:</span>
+              <select
+                value={selectedClinicId}
+                onChange={(e) => setSelectedClinicId(e.target.value)}
+                className="text-xs font-bold text-slate-900 bg-white border border-slate-200 rounded-lg px-3 py-1.5 cursor-pointer focus:outline-hidden focus:border-teal-600 shadow-2xs"
+              >
+                {isAppAdmin && <option value="all">🌐 All Studios (Global Overview)</option>}
+                {branches.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    🏥 {b.name.replace('Smile Dental - ', '')}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           {/* Metric Stats Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 sm:gap-4 mb-8">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mb-8">
             <div
               onClick={() => setActiveTab('analytics')}
               className={`p-4 rounded-2xl border transition-all cursor-pointer ${
@@ -453,35 +764,7 @@ export default function AdminPage() {
                 <BarChart3 className="w-4 h-4 text-teal-600" />
               </div>
               <div className="text-2xl font-extrabold text-slate-900">Charts</div>
-              <p className="text-[11px] text-teal-800 font-medium mt-0.5">Distribution</p>
-            </div>
-
-            <div
-              onClick={() => setActiveTab('users')}
-              className={`p-4 rounded-2xl border transition-all cursor-pointer ${
-                activeTab === 'users' ? 'bg-teal-50/70 border-teal-600 ring-2 ring-teal-600/10' : 'bg-white border-slate-200 hover:border-slate-300'
-              }`}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Patients</span>
-                <Users className="w-4 h-4 text-teal-600" />
-              </div>
-              <div className="text-2xl font-extrabold text-slate-900">{users.length}</div>
-              <p className="text-[11px] text-teal-800 font-medium mt-0.5">Registered Users</p>
-            </div>
-
-            <div
-              onClick={() => setActiveTab('appointments')}
-              className={`p-4 rounded-2xl border transition-all cursor-pointer ${
-                activeTab === 'appointments' ? 'bg-teal-50/70 border-teal-600 ring-2 ring-teal-600/10' : 'bg-white border-slate-200 hover:border-slate-300'
-              }`}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Visits</span>
-                <Calendar className="w-4 h-4 text-teal-600" />
-              </div>
-              <div className="text-2xl font-extrabold text-slate-900">{appointments.length}</div>
-              <p className="text-[11px] text-slate-500 font-medium mt-0.5">Total Bookings</p>
+              <p className="text-[11px] text-teal-800 font-medium mt-0.5">Performance</p>
             </div>
 
             <div
@@ -494,50 +777,64 @@ export default function AdminPage() {
                 <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Doctors</span>
                 <Stethoscope className="w-4 h-4 text-teal-600" />
               </div>
-              <div className="text-2xl font-extrabold text-slate-900">{doctors.length}</div>
-              <p className="text-[11px] text-slate-500 font-medium mt-0.5">Specialists</p>
+              <div className="text-2xl font-extrabold text-slate-900">{visibleDoctors.length}</div>
+              <p className="text-[11px] text-slate-500 font-medium mt-0.5">Clinical Staff</p>
             </div>
 
             <div
-              onClick={() => setActiveTab('branches')}
+              onClick={() => setActiveTab('employees')}
               className={`p-4 rounded-2xl border transition-all cursor-pointer ${
-                activeTab === 'branches' ? 'bg-teal-50/70 border-teal-600 ring-2 ring-teal-600/10' : 'bg-white border-slate-200 hover:border-slate-300'
+                activeTab === 'employees' ? 'bg-teal-50/70 border-teal-600 ring-2 ring-teal-600/10' : 'bg-white border-slate-200 hover:border-slate-300'
               }`}
             >
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Studios</span>
-                <Building2 className="w-4 h-4 text-teal-600" />
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Staff & PAs</span>
+                <Briefcase className="w-4 h-4 text-teal-600" />
               </div>
-              <div className="text-2xl font-extrabold text-slate-900">{branches.length}</div>
-              <p className="text-[11px] text-slate-500 font-medium mt-0.5">Clinic Locations</p>
+              <div className="text-2xl font-extrabold text-slate-900">{visibleDoctors.length + personalAssistants.length}</div>
+              <p className="text-[11px] text-teal-800 font-medium mt-0.5">1 PA per Doctor</p>
             </div>
 
             <div
-              onClick={() => setActiveTab('services')}
+              onClick={() => setActiveTab('users')}
               className={`p-4 rounded-2xl border transition-all cursor-pointer ${
-                activeTab === 'services' ? 'bg-teal-50/70 border-teal-600 ring-2 ring-teal-600/10' : 'bg-white border-slate-200 hover:border-slate-300'
+                activeTab === 'users' ? 'bg-teal-50/70 border-teal-600 ring-2 ring-teal-600/10' : 'bg-white border-slate-200 hover:border-slate-300'
               }`}
             >
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Services</span>
-                <Smile className="w-4 h-4 text-teal-600" />
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Patients</span>
+                <Users className="w-4 h-4 text-teal-600" />
               </div>
-              <div className="text-2xl font-extrabold text-slate-900">{services.length}</div>
-              <p className="text-[11px] text-slate-500 font-medium mt-0.5">Care Treatments</p>
+              <div className="text-2xl font-extrabold text-slate-900">{visibleUsers.length}</div>
+              <p className="text-[11px] text-teal-800 font-medium mt-0.5">Studio Patients</p>
             </div>
 
             <div
-              onClick={() => setActiveTab('data')}
+              onClick={() => setActiveTab('appointments')}
               className={`p-4 rounded-2xl border transition-all cursor-pointer ${
-                activeTab === 'data' ? 'bg-teal-50/70 border-teal-600 ring-2 ring-teal-600/10' : 'bg-white border-slate-200 hover:border-slate-300'
+                activeTab === 'appointments' ? 'bg-teal-50/70 border-teal-600 ring-2 ring-teal-600/10' : 'bg-white border-slate-200 hover:border-slate-300'
               }`}
             >
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Re-upload</span>
-                <UploadCloud className="w-4 h-4 text-teal-600" />
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Visits</span>
+                <Calendar className="w-4 h-4 text-teal-600" />
               </div>
-              <div className="text-2xl font-extrabold text-slate-900">JSON</div>
-              <p className="text-[11px] text-teal-800 font-medium mt-0.5">Bulk Upload & Edit</p>
+              <div className="text-2xl font-extrabold text-slate-900">{visibleAppointments.length}</div>
+              <p className="text-[11px] text-slate-500 font-medium mt-0.5">Booked Care</p>
+            </div>
+
+            <div
+              onClick={() => setActiveTab('clinic_profile')}
+              className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+                activeTab === 'clinic_profile' ? 'bg-teal-50/70 border-teal-600 ring-2 ring-teal-600/10' : 'bg-white border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Studio Photos</span>
+                <Camera className="w-4 h-4 text-teal-600" />
+              </div>
+              <div className="text-2xl font-extrabold text-slate-900">Photos</div>
+              <p className="text-[11px] text-teal-800 font-medium mt-0.5">Clinic Profile</p>
             </div>
           </div>
 
@@ -545,7 +842,7 @@ export default function AdminPage() {
           <div className="flex items-center gap-2 border-b border-slate-200 mb-8 overflow-x-auto pb-2 scrollbar-none">
             <button
               onClick={() => setActiveTab('analytics')}
-              className={`flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all cursor-pointer ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all cursor-pointer ${
                 activeTab === 'analytics'
                   ? 'bg-slate-900 text-white shadow-xs'
                   : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200'
@@ -556,68 +853,113 @@ export default function AdminPage() {
             </button>
 
             <button
+              onClick={() => setActiveTab('doctors')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all cursor-pointer ${
+                activeTab === 'doctors'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200'
+              }`}
+            >
+              <Stethoscope className="w-4 h-4 text-teal-400" />
+              <span>Doctors ({visibleDoctors.length})</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('employees')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all cursor-pointer ${
+                activeTab === 'employees'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200'
+              }`}
+            >
+              <Briefcase className="w-4 h-4 text-teal-400" />
+              <span>Clinic Employees & Assistants</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('clinic_profile')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all cursor-pointer ${
+                activeTab === 'clinic_profile'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200'
+              }`}
+            >
+              <Camera className="w-4 h-4 text-teal-400" />
+              <span>Clinic Profile & Photos</span>
+            </button>
+
+            <button
               onClick={() => setActiveTab('users')}
-              className={`flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all cursor-pointer ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all cursor-pointer ${
                 activeTab === 'users'
                   ? 'bg-slate-900 text-white shadow-xs'
                   : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200'
               }`}
             >
               <Users className="w-4 h-4" />
-              <span>Registered Patients ({users.length})</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('data')}
-              className={`flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all cursor-pointer ${
-                activeTab === 'data'
-                  ? 'bg-slate-900 text-white shadow-xs'
-                  : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200'
-              }`}
-            >
-              <UploadCloud className="w-4 h-4" />
-              <span>Re-upload Data (Doctors, Branches, etc.)</span>
+              <span>Registered Patients ({visibleUsers.length})</span>
             </button>
 
             <button
               onClick={() => setActiveTab('appointments')}
-              className={`flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all cursor-pointer ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all cursor-pointer ${
                 activeTab === 'appointments'
                   ? 'bg-slate-900 text-white shadow-xs'
                   : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200'
               }`}
             >
               <Calendar className="w-4 h-4" />
-              <span>All Appointments ({appointments.length})</span>
+              <span>Appointments ({visibleAppointments.length})</span>
             </button>
 
-            <button
-              onClick={() => setActiveTab('doctors')}
-              className={`flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all cursor-pointer ${
-                activeTab === 'doctors'
-                  ? 'bg-slate-900 text-white shadow-xs'
-                  : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200'
-              }`}
-            >
-              <Stethoscope className="w-4 h-4" />
-              <span>Doctors ({doctors.length})</span>
-            </button>
+            {isAppAdmin && (
+              <>
+                <button
+                  onClick={() => setActiveTab('clinic_admins')}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all cursor-pointer ${
+                    activeTab === 'clinic_admins'
+                      ? 'bg-slate-900 text-white shadow-xs'
+                      : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200'
+                  }`}
+                >
+                  <Shield className="w-4 h-4 text-teal-400" />
+                  <span>Clinic Admins ({clinicAdmins.length})</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('hospital_provisioning')}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all cursor-pointer ${
+                    activeTab === 'hospital_provisioning'
+                      ? 'bg-teal-700 text-white shadow-xs'
+                      : 'bg-teal-50 text-teal-900 hover:bg-teal-100 border border-teal-200'
+                  }`}
+                >
+                  <Shield className="w-4 h-4 text-amber-300" />
+                  <span>Hospital Applications & Provisioning</span>
+                  {hospitalRegistrations.filter((h) => !h.panelProvisioned).length > 0 && (
+                    <span className="ml-1 px-1.5 py-0.5 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black">
+                      {hospitalRegistrations.filter((h) => !h.panelProvisioned).length}
+                    </span>
+                  )}
+                </button>
+              </>
+            )}
 
             <button
               onClick={() => setActiveTab('branches')}
-              className={`flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all cursor-pointer ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all cursor-pointer ${
                 activeTab === 'branches'
                   ? 'bg-slate-900 text-white shadow-xs'
                   : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200'
               }`}
             >
               <Building2 className="w-4 h-4" />
-              <span>Studios ({branches.length})</span>
+              <span>All Studios ({branches.length})</span>
             </button>
 
             <button
               onClick={() => setActiveTab('services')}
-              className={`flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all cursor-pointer ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all cursor-pointer ${
                 activeTab === 'services'
                   ? 'bg-slate-900 text-white shadow-xs'
                   : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200'
@@ -626,6 +968,20 @@ export default function AdminPage() {
               <Smile className="w-4 h-4" />
               <span>Services ({services.length})</span>
             </button>
+
+            {isAppAdmin && (
+              <button
+                onClick={() => setActiveTab('data')}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all cursor-pointer ${
+                  activeTab === 'data'
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200'
+                }`}
+              >
+                <UploadCloud className="w-4 h-4" />
+                <span>JSON Data</span>
+              </button>
+            )}
           </div>
 
           {/* ================================================================= */}
@@ -806,9 +1162,9 @@ export default function AdminPage() {
           )}
 
           {/* ================================================================= */}
-          {/* TAB 2: DATA RE-UPLOAD & JSON MANAGER (Doctors, Branches, etc.) */}
+          {/* TAB 2: DATA RE-UPLOAD & JSON MANAGER (APP ADMIN ONLY) */}
           {/* ================================================================= */}
-          {activeTab === 'data' && (
+          {activeTab === 'data' && isAppAdmin && (
             <div className="space-y-8 animate-in fade-in duration-200">
               {/* Instructions & Template Shortcuts */}
               <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
@@ -1086,33 +1442,230 @@ export default function AdminPage() {
           )}
 
           {/* ================================================================= */}
-          {/* TAB 4: DOCTORS ROSTER */}
+          {/* TAB 4: DOCTORS & CLINICAL ACCOUNTS MANAGEMENT */}
           {/* ================================================================= */}
           {activeTab === 'doctors' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in duration-200">
-              {doctors.map((doc) => (
-                <div key={doc.id} className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="font-bold text-base text-slate-900">{doc.name}</h3>
-                      <p className="text-xs text-teal-800 font-semibold">{doc.title}</p>
-                      <p className="text-xs text-slate-500">{doc.qualification}</p>
-                    </div>
-                    <span className="px-2 py-0.5 bg-emerald-50 text-emerald-800 text-[10px] font-bold rounded-full border border-emerald-200">
-                      Active
-                    </span>
-                  </div>
-
-                  <p className="text-xs text-slate-600 line-clamp-3 leading-relaxed">
-                    {doc.bio}
+            <div className="space-y-6 animate-in fade-in duration-200">
+              {/* Doctor Header & Actions */}
+              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900">
+                    Hospital Doctors & Account Management
+                  </h2>
+                  <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl">
+                    Create, manage, and remove doctor accounts for the hospital. Doctors can log into their clinical portal to review scheduled patient appointments and set their weekly availability shifts.
                   </p>
-
-                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-                    <span>{doc.experienceYears} Years Clinical Exp.</span>
-                    <span className="font-bold text-slate-900">★ {doc.rating} ({doc.reviewsCount})</span>
-                  </div>
                 </div>
-              ))}
+
+                <div className="flex items-center gap-3 shrink-0">
+                  <Link
+                    href="/doctor"
+                    className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-xs sm:text-sm font-bold text-slate-800 flex items-center gap-2"
+                  >
+                    <Stethoscope className="w-4 h-4 text-teal-700" />
+                    <span>View Doctor Portal</span>
+                  </Link>
+
+                  <button
+                    onClick={() => {
+                      setEditingDoctorId(null);
+                      setDoctorFormData({
+                        name: '',
+                        email: '',
+                        password: 'doctor123',
+                        phone: '(555) 234-1100',
+                        title: 'Specialist Dentist',
+                        qualification: 'DDS / DMD Board Certified',
+                        specialization: 'Cosmetic & Aesthetic Dentistry',
+                        experienceYears: 8,
+                        bio: '',
+                        imageUrl: `https://picsum.photos/seed/doc-${Date.now()}/800/800`,
+                        branchIds: selectedClinicId !== 'all' ? [selectedClinicId] : branches.length > 0 ? [branches[0].id] : ['branch-downtown'],
+                        serviceIds: services.length > 0 ? [services[0].id] : ['srv-checkup-cleaning'],
+                        languages: 'English',
+                      });
+                      setIsAddDoctorModalOpen(true);
+                    }}
+                    className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs sm:text-sm font-bold flex items-center gap-2 shadow-xs cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4 text-teal-400" />
+                    <span>Create Doctor Account</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Doctors Roster Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {visibleDoctors.map((doc) => {
+                  const assignedBranchNames = branches
+                    .filter((b) => doc.branchIds?.includes(b.id))
+                    .map((b) => b.name.replace('Smile Dental - ', ''));
+                  const docAppointmentsCount = appointments.filter((a) => a.doctorId === doc.id).length;
+
+                  return (
+                    <div key={doc.id} className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-4 flex flex-col justify-between hover:border-slate-300 transition-all">
+                      <div className="space-y-4">
+                        {/* Doctor Head Info */}
+                        <div className="flex items-start gap-4">
+                          <div className="relative w-14 h-14 rounded-2xl overflow-hidden bg-slate-100 ring-2 ring-teal-600/20 shrink-0 shadow-2xs">
+                            <Image
+                              src={doc.imageUrl}
+                              alt={doc.name}
+                              fill
+                              className="object-cover"
+                              referrerPolicy="no-referrer"
+                            />
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-1">
+                              <h3 className="font-bold text-base text-slate-900 truncate">{doc.name}</h3>
+                              <span className="px-2 py-0.5 bg-emerald-50 text-emerald-800 text-[10px] font-bold rounded-full border border-emerald-200 shrink-0">
+                                Active
+                              </span>
+                            </div>
+                            <p className="text-xs text-teal-800 font-semibold truncate">{doc.title}</p>
+                            <p className="text-[11px] text-slate-500 truncate">{doc.qualification}</p>
+                          </div>
+                        </div>
+
+                        {/* Account Login Credentials Badge */}
+                        <div className="bg-slate-50 rounded-xl p-3 border border-slate-200/80 space-y-1.5 text-xs">
+                          <div className="flex items-center justify-between text-slate-600">
+                            <span className="font-semibold text-slate-500 text-[11px] uppercase tracking-wider">Account Email:</span>
+                            <span className="font-mono text-slate-900 font-bold truncate max-w-[170px]">{doc.email || 'doctor@smiledental.com'}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-slate-600">
+                            <span className="font-semibold text-slate-500 text-[11px] uppercase tracking-wider">Portal Password:</span>
+                            <span className="font-mono text-slate-700 bg-white px-2 py-0.5 rounded border border-slate-200">{doc.password || 'doctor123'}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-slate-600">
+                            <span className="font-semibold text-slate-500 text-[11px] uppercase tracking-wider">Direct Phone:</span>
+                            <span className="text-slate-800">{doc.phone || '(555) 234-1100'}</span>
+                          </div>
+                        </div>
+
+                        {/* Assigned Locations & Experience */}
+                        <div className="space-y-1.5 text-xs">
+                          <div className="flex items-center justify-between text-slate-600">
+                            <span className="text-slate-500">Clinical Specialty:</span>
+                            <span className="font-semibold text-slate-900">{doc.specialization}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-slate-600">
+                            <span className="text-slate-500">Studios:</span>
+                            <span className="font-medium text-slate-800 text-right">
+                              {assignedBranchNames.join(', ') || 'All Studios'}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-slate-600">
+                            <span className="text-slate-500">Total Appointments:</span>
+                            <span className="font-bold text-teal-800">{docAppointmentsCount} Bookings</span>
+                          </div>
+                        </div>
+
+                        <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed italic bg-slate-50/50 p-2.5 rounded-lg border border-slate-100">
+                          &quot;{doc.bio}&quot;
+                        </p>
+                      </div>
+
+                      {/* Admin Actions Footer */}
+                      <div className="pt-4 border-t border-slate-100 flex flex-col gap-2">
+                        <Link
+                          href={`/doctor?id=${doc.id}`}
+                          className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs transition-all"
+                        >
+                          <CalendarCheck className="w-3.5 h-3.5 text-teal-400" />
+                          <span>Open Doctor Portal & Availability</span>
+                        </Link>
+
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditDoctor(doc)}
+                          className="w-full py-2 bg-teal-50 hover:bg-teal-100 text-teal-800 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border border-teal-200 cursor-pointer transition-all"
+                        >
+                          <Camera className="w-3.5 h-3.5" />
+                          <span>Update Doctor Photo & Details</span>
+                        </button>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleOpenEditDoctor(doc)}
+                            className="flex-1 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-semibold flex items-center justify-center gap-1 cursor-pointer transition-all"
+                          >
+                            <Edit3 className="w-3.5 h-3.5 text-slate-600" />
+                            <span>Edit Full Details</span>
+                          </button>
+
+                          <button
+                            onClick={() => handleDeleteDoctor(doc.id, doc.name)}
+                            className="py-1.5 px-3 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-semibold flex items-center justify-center gap-1 cursor-pointer transition-all border border-rose-200"
+                            title="Delete Doctor from Hospital"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Delete</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ================================================================= */}
+          {/* TAB: CLINIC EMPLOYEES & PERSONAL ASSISTANTS (1 PA PER DOCTOR) */}
+          {/* ================================================================= */}
+          {activeTab === 'employees' && (
+            <div className="animate-in fade-in duration-200">
+              <ClinicEmployeesTab
+                clinicName={activeBranch?.name || 'Clinic Studio'}
+                doctors={visibleDoctors}
+                personalAssistants={personalAssistants}
+                onRefreshData={loadAllAdminData}
+                showNotification={showNotification}
+              />
+            </div>
+          )}
+
+          {/* ================================================================= */}
+          {/* TAB: CLINIC PROFILE & IMAGES */}
+          {/* ================================================================= */}
+          {activeTab === 'clinic_profile' && activeBranch && (
+            <div className="animate-in fade-in duration-200">
+              <ClinicProfileAndImagesTab
+                branch={activeBranch}
+                onRefreshData={loadAllAdminData}
+                showNotification={showNotification}
+              />
+            </div>
+          )}
+
+          {/* ================================================================= */}
+          {/* TAB: APPLICATION ADMIN ONLY - CLINIC ADMINISTRATORS */}
+          {/* ================================================================= */}
+          {activeTab === 'clinic_admins' && isAppAdmin && (
+            <div className="animate-in fade-in duration-200">
+              <ClinicAdminsTab
+                clinicAdmins={clinicAdmins}
+                branches={branches}
+                onRefreshData={loadAllAdminData}
+                showNotification={showNotification}
+              />
+            </div>
+          )}
+
+          {/* ================================================================= */}
+          {/* TAB: APPLICATION ADMIN ONLY - HOSPITAL PROVISIONING */}
+          {/* ================================================================= */}
+          {activeTab === 'hospital_provisioning' && isAppAdmin && (
+            <div className="animate-in fade-in duration-200">
+              <HospitalProvisioningTab
+                hospitalRegistrations={hospitalRegistrations}
+                onRefreshData={loadAllAdminData}
+                onSelectClinic={(clinicId) => setSelectedClinicId(clinicId)}
+                showNotification={showNotification}
+              />
             </div>
           )}
 
@@ -1188,6 +1741,279 @@ export default function AdminPage() {
           )}
         </div>
       </main>
+
+      {/* ================================================================= */}
+      {/* MODAL: CREATE / EDIT DOCTOR ACCOUNT */}
+      {/* ================================================================= */}
+      {isAddDoctorModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 max-w-2xl w-full shadow-2xl max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200 space-y-6">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-teal-100 text-teal-800 flex items-center justify-center">
+                  <Stethoscope className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-lg text-slate-900">
+                    {editingDoctorId ? 'Edit Doctor Account' : 'Create Hospital Doctor Account'}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    {editingDoctorId ? 'Update doctor credentials and clinical details' : 'Register a new clinician and generate login credentials'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setIsAddDoctorModalOpen(false);
+                  setEditingDoctorId(null);
+                }}
+                className="text-slate-400 hover:text-slate-600 font-bold text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveDoctor} className="space-y-4">
+              {/* Doctor Portrait & Photo Selector */}
+              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Camera className="w-3.5 h-3.5 text-teal-600" />
+                    Doctor Photo / Portrait URL *
+                  </span>
+                  <span className="text-[10px] text-teal-700 font-semibold normal-case">Pick preset avatar or paste custom URL</span>
+                </label>
+                <div className="flex items-center gap-3 mb-2.5">
+                  <div className="relative w-12 h-12 rounded-xl overflow-hidden bg-slate-200 ring-2 ring-teal-600/30 shrink-0 shadow-2xs">
+                    <Image
+                      src={doctorFormData.imageUrl || 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&q=80&w=800'}
+                      alt="Doctor portrait preview"
+                      fill
+                      className="object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                  </div>
+                  <input
+                    type="url"
+                    required
+                    value={doctorFormData.imageUrl}
+                    onChange={(e) => setDoctorFormData({ ...doctorFormData, imageUrl: e.target.value })}
+                    placeholder="https://images.unsplash.com/photo-..."
+                    className="flex-1 p-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-hidden focus:border-teal-600 font-mono"
+                  />
+                </div>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[11px] font-semibold text-slate-500 mr-1">Presets:</span>
+                  {DOCTOR_PHOTO_PRESETS.map((preset) => (
+                    <button
+                      key={preset.name}
+                      type="button"
+                      onClick={() => setDoctorFormData({ ...doctorFormData, imageUrl: preset.url })}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer ${
+                        doctorFormData.imageUrl === preset.url
+                          ? 'bg-teal-600 text-white border-teal-600 shadow-2xs'
+                          : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      {preset.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Doctor Full Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={doctorFormData.name}
+                    onChange={(e) => setDoctorFormData({ ...doctorFormData, name: e.target.value })}
+                    placeholder="e.g. Dr. Julian Hayes, DDS"
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-hidden focus:border-teal-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Portal Login Email *
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={doctorFormData.email}
+                    onChange={(e) => setDoctorFormData({ ...doctorFormData, email: e.target.value })}
+                    placeholder="dr.julian.hayes@smiledental.com"
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-hidden focus:border-teal-600"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Portal Password / Access PIN *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={doctorFormData.password}
+                    onChange={(e) => setDoctorFormData({ ...doctorFormData, password: e.target.value })}
+                    placeholder="doctor123"
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-mono text-slate-900 focus:outline-hidden focus:border-teal-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Direct Phone Number
+                  </label>
+                  <input
+                    type="tel"
+                    value={doctorFormData.phone}
+                    onChange={(e) => setDoctorFormData({ ...doctorFormData, phone: e.target.value })}
+                    placeholder="(555) 234-1180"
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-hidden focus:border-teal-600"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Specialization *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={doctorFormData.specialization}
+                    onChange={(e) => setDoctorFormData({ ...doctorFormData, specialization: e.target.value })}
+                    placeholder="e.g. Endodontics / Cosmetic Dentistry"
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-hidden focus:border-teal-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Clinical Title
+                  </label>
+                  <input
+                    type="text"
+                    value={doctorFormData.title}
+                    onChange={(e) => setDoctorFormData({ ...doctorFormData, title: e.target.value })}
+                    placeholder="Senior Restorative Dentist"
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-hidden focus:border-teal-600"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Qualifications & Degrees
+                  </label>
+                  <input
+                    type="text"
+                    value={doctorFormData.qualification}
+                    onChange={(e) => setDoctorFormData({ ...doctorFormData, qualification: e.target.value })}
+                    placeholder="DDS (Harvard Dental), AACD Fellow"
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-hidden focus:border-teal-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Years of Clinical Experience
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="50"
+                    value={doctorFormData.experienceYears}
+                    onChange={(e) => setDoctorFormData({ ...doctorFormData, experienceYears: Number(e.target.value) })}
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-hidden focus:border-teal-600"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  Assigned Branch Studios
+                </label>
+                <div className="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                  {branches.map((branch) => {
+                    const isChecked = doctorFormData.branchIds.includes(branch.id);
+                    return (
+                      <label key={branch.id} className="flex items-center gap-2 text-xs font-medium text-slate-800 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setDoctorFormData({ ...doctorFormData, branchIds: [...doctorFormData.branchIds, branch.id] });
+                            } else {
+                              setDoctorFormData({ ...doctorFormData, branchIds: doctorFormData.branchIds.filter((id) => id !== branch.id) });
+                            }
+                          }}
+                          className="rounded text-teal-600"
+                        />
+                        <span>{branch.name.replace('Smile Dental - ', '')}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  Languages Spoken (comma separated)
+                </label>
+                <input
+                  type="text"
+                  value={doctorFormData.languages}
+                  onChange={(e) => setDoctorFormData({ ...doctorFormData, languages: e.target.value })}
+                  placeholder="English, Spanish, French"
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-hidden focus:border-teal-600"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  Clinical Bio & Patient Care Philosophy
+                </label>
+                <textarea
+                  rows={3}
+                  value={doctorFormData.bio}
+                  onChange={(e) => setDoctorFormData({ ...doctorFormData, bio: e.target.value })}
+                  placeholder="Describe clinician background and approach to patient care..."
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-hidden focus:border-teal-600 leading-relaxed"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsAddDoctorModalOpen(false);
+                    setEditingDoctorId(null);
+                  }}
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-semibold text-xs hover:bg-slate-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-xs cursor-pointer"
+                >
+                  {editingDoctorId ? 'Save Doctor Changes' : 'Create Doctor Account'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* ================================================================= */}
       {/* MODAL: ADD / REGISTER NEW PATIENT */}
