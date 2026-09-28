@@ -13,6 +13,7 @@ import {
   Clock
 } from 'lucide-react';
 import { Doctor } from '@/types/dental';
+import { safeFetchJson } from '@/lib/utils';
 
 export default function DoctorsSection() {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
@@ -21,9 +22,8 @@ export default function DoctorsSection() {
   useEffect(() => {
     async function fetchDoctors() {
       try {
-        const res = await fetch('/api/doctors');
-        const data = await res.json();
-        if (data.doctors) setDoctors(data.doctors);
+        const data = await safeFetchJson<{ doctors: Doctor[] }>('/api/doctors');
+        if (data?.doctors) setDoctors(data.doctors);
       } catch (err) {
         console.error('Error fetching doctors:', err);
       } finally {

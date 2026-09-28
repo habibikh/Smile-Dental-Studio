@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { savePatient, getRegisteredUsers } from '@/lib/db';
+import { savePatient, getRegisteredUsers, saveDoctor, getDoctors } from '@/lib/db';
 import { PatientProfile } from '@/types/dental';
 
 export async function POST(req: NextRequest) {
@@ -9,6 +9,7 @@ export async function POST(req: NextRequest) {
     const email = (body.email || '').trim().toLowerCase();
     const phone = (body.phone || '').trim();
     const password = (body.password || '').trim();
+    const isDoctor = body.role === 'doctor' || body.accountType === 'doctor';
 
     if (!fullName || !email) {
       return NextResponse.json(
@@ -24,9 +25,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check if email already belongs to an existing user
-    const existingUsers = await getRegisteredUsers();
-    const alreadyExists = existingUsers.some((u) => u.email.toLowerCase() === email);
+    // Check if email already belongs to an existing user or doctor
+    const [existingUsers, existingDoctors] = await Promise.all([
+      getRegisteredUsers(),
+      getDoctors(),
+    ]);
+
+    const alreadyExists =
+      existingUsers.some((u) => u.email.toLowerCase() === email) ||
+      existingDoctors.some((d) => d.email && d.email.toLowerCase() === email);
+
     if (alreadyExists) {
       return NextResponse.json(
         {
@@ -35,6 +43,42 @@ export async function POST(req: NextRequest) {
         },
         { status: 409 }
       );
+    }
+
+    if (isDoctor) {
+      // Register doctor account
+      const doctor = await saveDoctor({
+        name: fullName,
+        email,
+        password,
+        phone: phone || '(555) 234-1100',
+        title: body.title || `Specialist in ${body.specialization || 'Cosmetic Dentistry'}`,
+        qualification: body.qualification || 'DDS / DMD Board Certified',
+        specialization: body.specialization || 'Cosmetic & Aesthetic Dentistry',
+        experienceYears: Number(body.experienceYears) || 5,
+        bio: body.bio || `${fullName} is a dedicated dental specialist at Smile Dental Clinic committed to gentle, evidence-based patient care.`,
+        imageUrl: body.imageUrl || `https://picsum.photos/seed/${email.replace(/[^a-z0-9]/g, '')}/800/800`,
+        branchIds: body.branchIds?.length ? body.branchIds : [body.clinicId || 'branch-downtown'],
+        serviceIds: body.serviceIds?.length ? body.serviceIds : ['srv-checkup-cleaning'],
+      });
+
+      const doctorUser: PatientProfile = {
+        id: doctor.id,
+        fullName: doctor.name,
+        email: doctor.email || email,
+        phone: doctor.phone || phone || '(555) 234-1100',
+        role: 'clinic_admin',
+        clinicId: doctor.branchIds?.[0] || 'branch-downtown',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      return NextResponse.json({
+        success: true,
+        user: doctorUser,
+        doctor,
+        message: 'Doctor account successfully created! Welcome to Smile Dental Clinical Team.',
+      });
     }
 
     // Save as general user (patient)

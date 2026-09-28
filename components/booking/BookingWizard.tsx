@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { Branch, Service, Doctor, TimeSlot, Appointment } from '@/types/dental';
 import { useAuth } from '@/context/AuthContext';
+import { safeFetchJson } from '@/lib/utils';
 
 export default function BookingWizard() {
   const router = useRouter();
@@ -66,14 +67,14 @@ export default function BookingWizard() {
     async function load() {
       try {
         const [bRes, sRes, dRes] = await Promise.all([
-          fetch('/api/branches').then((r) => r.json()),
-          fetch('/api/services').then((r) => r.json()),
-          fetch('/api/doctors').then((r) => r.json()),
+          safeFetchJson<{ branches: Branch[] }>('/api/branches'),
+          safeFetchJson<{ services: Service[] }>('/api/services'),
+          safeFetchJson<{ doctors: Doctor[] }>('/api/doctors'),
         ]);
 
-        if (bRes.branches) setBranches(bRes.branches);
-        if (sRes.services) setServices(sRes.services);
-        if (dRes.doctors) setDoctors(dRes.doctors);
+        if (bRes?.branches) setBranches(bRes.branches);
+        if (sRes?.services) setServices(sRes.services);
+        if (dRes?.doctors) setDoctors(dRes.doctors);
 
         // Pre-fill from query params if passed
         const qBranch = searchParams.get('branchId');

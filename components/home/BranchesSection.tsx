@@ -13,6 +13,7 @@ import {
   Calendar
 } from 'lucide-react';
 import { Branch } from '@/types/dental';
+import { safeFetchJson } from '@/lib/utils';
 
 export default function BranchesSection() {
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -21,9 +22,8 @@ export default function BranchesSection() {
   useEffect(() => {
     async function fetchBranches() {
       try {
-        const res = await fetch('/api/branches');
-        const data = await res.json();
-        if (data.branches) setBranches(data.branches);
+        const data = await safeFetchJson<{ branches: Branch[] }>('/api/branches');
+        if (data?.branches) setBranches(data.branches);
       } catch (err) {
         console.error('Failed to load branches:', err);
       } finally {

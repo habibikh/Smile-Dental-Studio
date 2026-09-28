@@ -33,12 +33,17 @@ function createMessageId(prefix: string) {
   return `${prefix}-${chatCounter}`;
 }
 
+function removeAsterisks(text: string): string {
+  if (!text) return '';
+  return text.replace(/\*/g, '');
+}
+
 const INITIAL_MESSAGES: ChatMessage[] = [
   {
     id: 'msg-welcome',
     role: 'assistant',
     content:
-      '👋 Hello! I am **Smile Assistant**, your AI dental coordinator. I can help you check real-time doctor availability, explore dental services, book appointments, or reschedule your visits across our 4 clinics. How can I help you today?',
+      '👋 Hello! I am Smile Assistant, your AI dental coordinator. I can help you check real-time doctor availability, explore dental services, book appointments, or reschedule your visits across our 4 clinics. How can I help you today?',
     timestamp: 'Just now',
   },
 ];
@@ -106,14 +111,20 @@ export default function SmileAssistant() {
         }),
       });
 
-      const data = await response.json();
+      let data: any = null;
+      try {
+        const rawText = await response.text();
+        data = JSON.parse(rawText);
+      } catch {
+        data = null;
+      }
 
       const assistantMsg: ChatMessage = {
         id: createMessageId('asst'),
         role: 'assistant',
-        content: data.text || 'I have retrieved the clinic details for you.',
+        content: removeAsterisks(data?.text || 'I apologize, I am temporarily having trouble connecting to the clinic booking system. Please try again or book directly via our online booking page.'),
         timestamp: 'Just now',
-        structuredCards: data.structuredCards || [],
+        structuredCards: data?.structuredCards || [],
       };
 
       setMessages((prev) => [...prev, assistantMsg]);
@@ -214,7 +225,7 @@ export default function SmileAssistant() {
                         : 'bg-white text-slate-800 border border-slate-200 rounded-tl-xs shadow-xs'
                     }`}
                   >
-                    <div className="whitespace-pre-line">{msg.content}</div>
+                    <div className="whitespace-pre-line">{removeAsterisks(msg.content)}</div>
 
                     {/* Structured Action Cards (e.g. Real Availability Slots returned by tool) */}
                     {msg.structuredCards && msg.structuredCards.length > 0 && (

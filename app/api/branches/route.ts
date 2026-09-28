@@ -35,3 +35,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message || 'Failed to save branch' }, { status: 500 });
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get('id');
+    if (!id) {
+      return NextResponse.json({ error: 'Branch id is required' }, { status: 400 });
+    }
+    const { deleteBranch } = await import('@/lib/db');
+    const success = await deleteBranch(id);
+    return NextResponse.json({ success });
+  } catch (error: any) {
+    console.error('Error deleting branch:', error);
+    return NextResponse.json({ error: error.message || 'Failed to delete branch' }, { status: 500 });
+  }
+}

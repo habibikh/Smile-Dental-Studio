@@ -11,7 +11,13 @@ interface AuthContextType {
   user: PatientProfile | null;
   isLoading: boolean;
   login: (email: string, passwordOrName?: string, phone?: string, role?: 'patient' | 'clinic_admin' | 'app_admin', clinicId?: string) => Promise<{ success: boolean; user?: PatientProfile; error?: string }>;
-  register: (fullName: string, email: string, phone: string, password?: string) => Promise<{ success: boolean; user?: PatientProfile; error?: string }>;
+  register: (
+    fullName: string,
+    email: string,
+    phone: string,
+    password?: string,
+    extra?: { role?: 'patient' | 'clinic_admin' | 'doctor'; specialization?: string; clinicId?: string }
+  ) => Promise<{ success: boolean; user?: PatientProfile; error?: string }>;
   logout: () => void;
   updateProfile: (profile: Partial<PatientProfile>) => void;
   switchRole: (role: 'patient' | 'clinic_admin' | 'app_admin', clinicId?: string) => void;
@@ -212,18 +218,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     fullName: string,
     email: string,
     phone: string,
-    password?: string
+    password?: string,
+    extra?: { role?: 'patient' | 'clinic_admin' | 'doctor'; specialization?: string; clinicId?: string }
   ): Promise<{ success: boolean; user?: PatientProfile; error?: string }> => {
     setIsLoading(true);
     try {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fullName, email, phone, password }),
+        body: JSON.stringify({ fullName, email, phone, password, ...extra }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
-        return { success: false, error: data.error || 'Failed to create patient account.' };
+        return { success: false, error: data.error || 'Failed to create account.' };
       }
 
       const createdUser: PatientProfile = data.user;
@@ -236,12 +243,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { success: true, user: createdUser };
     } catch {
       // Local fallback account creation
+      const role = extra?.role === 'doctor' || extra?.role === 'clinic_admin' ? 'clinic_admin' : 'patient';
       const localUser: PatientProfile = {
-        id: `pat-${Date.now()}`,
+        id: role === 'clinic_admin' ? `dr-${Date.now()}` : `pat-${Date.now()}`,
         fullName: fullName.trim(),
         email: email.trim().toLowerCase(),
         phone: phone.trim() || '(555) 000-0000',
-        role: 'patient',
+        role,
+        clinicId: extra?.clinicId || 'branch-downtown',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };

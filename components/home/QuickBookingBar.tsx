@@ -15,6 +15,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { Branch, Service, Doctor, TimeSlot } from '@/types/dental';
+import { safeFetchJson } from '@/lib/utils';
 
 export default function QuickBookingBar() {
   const router = useRouter();
@@ -40,22 +41,22 @@ export default function QuickBookingBar() {
     async function loadData() {
       try {
         const [bRes, sRes, dRes] = await Promise.all([
-          fetch('/api/branches').then((r) => r.json()),
-          fetch('/api/services').then((r) => r.json()),
-          fetch('/api/doctors').then((r) => r.json()),
+          safeFetchJson<{ branches: Branch[] }>('/api/branches'),
+          safeFetchJson<{ services: Service[] }>('/api/services'),
+          safeFetchJson<{ doctors: Doctor[] }>('/api/doctors'),
         ]);
 
-        if (bRes.branches) {
+        if (bRes?.branches && bRes.branches.length > 0) {
           setBranches(bRes.branches);
-          if (bRes.branches.length > 0) setSelectedBranch(bRes.branches[0].id);
+          setSelectedBranch(bRes.branches[0].id);
         }
-        if (sRes.services) {
+        if (sRes?.services && sRes.services.length > 0) {
           setServices(sRes.services);
-          if (sRes.services.length > 0) setSelectedService(sRes.services[0].id);
+          setSelectedService(sRes.services[0].id);
         }
-        if (dRes.doctors) {
+        if (dRes?.doctors && dRes.doctors.length > 0) {
           setDoctors(dRes.doctors);
-          if (dRes.doctors.length > 0) setSelectedDoctor(dRes.doctors[0].id);
+          setSelectedDoctor(dRes.doctors[0].id);
         }
 
         // Set default date to tomorrow or nearest weekday
@@ -98,13 +99,14 @@ export default function QuickBookingBar() {
       setSelectedTime('');
 
       try {
-        const res = await fetch(
+        const data = await safeFetchJson<{ isClosed?: boolean; closureReason?: string; slots?: TimeSlot[] }>(
           `/api/availability?doctorId=${effectiveDoctor}&branchId=${selectedBranch}&serviceId=${selectedService}&date=${selectedDate}`
         );
-        const data = await res.json();
 
         if (isMounted) {
-          if (data.isClosed) {
+          if (!data) {
+            setSlotMessage('Unable to retrieve slots at this time.');
+          } else if (data.isClosed) {
             setAvailableSlots([]);
             setSlotMessage(data.closureReason || 'Doctor is not scheduled on this day.');
           } else {

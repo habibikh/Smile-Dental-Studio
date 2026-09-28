@@ -21,6 +21,7 @@ import {
   Calendar
 } from 'lucide-react';
 import { Service } from '@/types/dental';
+import { safeFetchJson } from '@/lib/utils';
 
 export default function ServicesSection() {
   const [services, setServices] = useState<Service[]>([]);
@@ -31,9 +32,8 @@ export default function ServicesSection() {
   useEffect(() => {
     async function fetchServices() {
       try {
-        const res = await fetch('/api/services');
-        const data = await res.json();
-        if (data.services) setServices(data.services);
+        const data = await safeFetchJson<{ services: Service[] }>('/api/services');
+        if (data?.services) setServices(data.services);
       } catch (err) {
         console.error('Failed to load services:', err);
       } finally {

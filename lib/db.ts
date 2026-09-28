@@ -768,6 +768,13 @@ export async function saveBranch(data: Partial<Branch> & { name: string }): Prom
   return updatedBranch;
 }
 
+export async function deleteBranch(id: string): Promise<boolean> {
+  const store = getStore();
+  const init = store.branches.length;
+  store.branches = store.branches.filter((b) => b.id !== id);
+  return store.branches.length < init;
+}
+
 export async function getServices(): Promise<Service[]> {
   const store = getStore();
   return store.services.filter((s) => s.active);
@@ -804,13 +811,27 @@ export async function getDoctorByEmail(email: string): Promise<Doctor | null> {
 
 export async function saveDoctor(data: Partial<Doctor> & { name: string; specialization: string }): Promise<Doctor> {
   const store = getStore();
+  const cleanEmail = data.email?.trim().toLowerCase() || `${data.name.toLowerCase().replace(/[^a-z0-9]+/g, '.')}@smiledental.com`;
+  
+  // Match by id or by email
   const id = data.id || `dr-${data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now().toString().slice(-4)}`;
-  const existingIndex = store.doctors.findIndex((d) => d.id === id);
+  let existingIndex = store.doctors.findIndex((d) => d.id === id);
+  if (existingIndex < 0) {
+    existingIndex = store.doctors.findIndex((d) => d.email && d.email.toLowerCase() === cleanEmail);
+  }
 
-  const cleanEmail = data.email?.trim() || `${data.name.toLowerCase().replace(/[^a-z0-9]+/g, '.')}@smiledental.com`;
+  const allBranchIds = store.branches.map((b) => b.id);
+  let safeBranchIds = Array.isArray(data.branchIds) && data.branchIds.length > 0
+    ? data.branchIds.includes('all')
+      ? allBranchIds
+      : data.branchIds.filter((b) => b && b !== 'all')
+    : [];
+  if (safeBranchIds.length === 0) {
+    safeBranchIds = allBranchIds.length > 0 ? [allBranchIds[0]] : ['branch-downtown'];
+  }
 
   const updatedDoc: Doctor = {
-    id,
+    id: existingIndex >= 0 ? store.doctors[existingIndex].id : id,
     name: data.name.trim(),
     email: cleanEmail,
     password: data.password?.trim() || 'doctor123',
@@ -821,7 +842,7 @@ export async function saveDoctor(data: Partial<Doctor> & { name: string; special
     experienceYears: Number(data.experienceYears) || 5,
     bio: data.bio?.trim() || `${data.name} is a dedicated dental specialist at Smile Dental Clinic committed to gentle, evidence-based patient care.`,
     imageUrl: data.imageUrl?.trim() || `https://picsum.photos/seed/${id}/800/800`,
-    branchIds: Array.isArray(data.branchIds) && data.branchIds.length > 0 ? data.branchIds : [store.branches[0]?.id || 'branch-downtown'],
+    branchIds: safeBranchIds,
     serviceIds: Array.isArray(data.serviceIds) && data.serviceIds.length > 0 ? data.serviceIds : [store.services[0]?.id || 'srv-checkup-cleaning'],
     rating: data.rating !== undefined ? Number(data.rating) : 5.0,
     reviewsCount: data.reviewsCount !== undefined ? Number(data.reviewsCount) : 0,
@@ -839,7 +860,7 @@ export async function saveDoctor(data: Partial<Doctor> & { name: string; special
       const days = bIdx === 0 ? [1, 2, 3] : [4, 5];
       days.forEach((dayOfWeek) => {
         store.schedules.push({
-          id: `sch-${updatedDoc.id}-${dayOfWeek}`,
+          id: `sch-${updatedDoc.id}-${branchId}-${dayOfWeek}`,
           doctorId: updatedDoc.id,
           branchId,
           dayOfWeek,
@@ -851,6 +872,40 @@ export async function saveDoctor(data: Partial<Doctor> & { name: string; special
         });
       });
     });
+  }
+
+  // Keep clinic admins roster in sync so doctor can log in
+  if (cleanEmail) {
+    const existingAdminIdx = store.clinicAdmins.findIndex((a) => a.email.toLowerCase() === cleanEmail.toLowerCase());
+    const adminEntry: ClinicAdminAccount = {
+      id: `clinic-adm-${updatedDoc.id}`,
+      name: updatedDoc.name,
+      email: cleanEmail,
+      password: updatedDoc.password || 'doctor123',
+      phone: updatedDoc.phone || '(555) 234-1100',
+      clinicId: updatedDoc.branchIds[0] || 'branch-downtown',
+      role: 'clinic_admin',
+      createdAt: new Date().toISOString(),
+    };
+    if (existingAdminIdx >= 0) {
+      store.clinicAdmins[existingAdminIdx] = { ...store.clinicAdmins[existingAdminIdx], ...adminEntry };
+    } else {
+      store.clinicAdmins.push(adminEntry);
+    }
+
+    // Keep patients roster in sync
+    const existingPatient = store.patients.get(cleanEmail);
+    const userEntry: PatientProfile = {
+      id: existingPatient?.id || updatedDoc.id,
+      fullName: updatedDoc.name,
+      email: cleanEmail,
+      phone: updatedDoc.phone || '(555) 234-1100',
+      role: 'clinic_admin',
+      clinicId: updatedDoc.branchIds[0] || 'branch-downtown',
+      createdAt: existingPatient?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    store.patients.set(cleanEmail, userEntry);
   }
 
   return updatedDoc;

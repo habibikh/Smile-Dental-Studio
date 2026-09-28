@@ -6,13 +6,16 @@ import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import SmileAssistant from '@/components/ai/SmileAssistant';
 import { useAuth } from '@/context/AuthContext';
-import { Smile, Mail, Lock, User, Phone, ArrowRight, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Smile, Mail, Lock, User, Phone, ArrowRight, AlertCircle, CheckCircle2, Stethoscope, Building2 } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
   const { user, login, register, logout, isAppAdmin, isClinicAdmin } = useAuth();
 
   const [isRegister, setIsRegister] = useState(false);
+  const [registerRole, setRegisterRole] = useState<'patient' | 'doctor'>('patient');
+  const [specialization, setSpecialization] = useState('Cosmetic & Aesthetic Dentistry');
+  const [doctorClinicId, setDoctorClinicId] = useState('branch-downtown');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -49,11 +52,19 @@ export default function LoginPage() {
     setIsSubmitting(true);
 
     try {
-      const result = await register(name, email, phone, password);
+      const result = await register(name, email, phone, password, {
+        role: registerRole,
+        specialization: registerRole === 'doctor' ? specialization : undefined,
+        clinicId: registerRole === 'doctor' ? doctorClinicId : undefined,
+      });
       if (result.success && result.user) {
-        router.push('/dashboard');
+        if (result.user.role === 'app_admin' || result.user.role === 'clinic_admin') {
+          router.push('/admin');
+        } else {
+          router.push('/dashboard');
+        }
       } else {
-        setErrorMessage(result.error || 'Failed to create patient account. Please try again.');
+        setErrorMessage(result.error || 'Failed to create account. Please try again.');
       }
     } catch {
       setErrorMessage('Unable to register at this time. Please try again.');
@@ -144,11 +155,39 @@ export default function LoginPage() {
               </button>
             </div>
           ) : isRegister ? (
-            /* Simple Registration Form for General User */
+            /* Registration Form */
             <form onSubmit={handleRegister} className="space-y-4">
+              {/* Account Type Toggle */}
+              <div className="bg-slate-100 p-1 rounded-2xl flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setRegisterRole('patient')}
+                  className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    registerRole === 'patient'
+                      ? 'bg-white text-slate-900 shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <User className="w-3.5 h-3.5 text-teal-600" />
+                  <span>Patient Account</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRegisterRole('doctor')}
+                  className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    registerRole === 'doctor'
+                      ? 'bg-teal-600 text-white shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Stethoscope className="w-3.5 h-3.5" />
+                  <span>Doctor Account</span>
+                </button>
+              </div>
+
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Full Legal Name
+                  {registerRole === 'doctor' ? 'Doctor Full Name' : 'Full Legal Name'}
                 </label>
                 <div className="relative">
                   <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
@@ -157,11 +196,48 @@ export default function LoginPage() {
                     required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="Alex Morgan"
+                    placeholder={registerRole === 'doctor' ? 'Dr. Maya Lin' : 'Alex Morgan'}
                     className="w-full h-11 pl-10 pr-3 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-hidden focus:border-teal-600 focus:bg-white transition-all"
                   />
                 </div>
               </div>
+
+              {registerRole === 'doctor' && (
+                <>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                      Clinical Specialization
+                    </label>
+                    <select
+                      value={specialization}
+                      onChange={(e) => setSpecialization(e.target.value)}
+                      className="w-full h-11 px-3 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-hidden focus:border-teal-600 focus:bg-white transition-all"
+                    >
+                      <option value="Cosmetic & Aesthetic Dentistry">Cosmetic & Aesthetic Dentistry</option>
+                      <option value="Orthodontics & Clear Aligners">Orthodontics & Clear Aligners</option>
+                      <option value="Implantology & Oral Reconstruction">Implantology & Oral Reconstruction</option>
+                      <option value="Pediatric Dentistry">Pediatric Dentistry</option>
+                      <option value="General & Preventive Dentistry">General & Preventive Dentistry</option>
+                      <option value="Endodontics (Root Canal Therapy)">Endodontics (Root Canal Therapy)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                      Assigned Clinic Studio
+                    </label>
+                    <select
+                      value={doctorClinicId}
+                      onChange={(e) => setDoctorClinicId(e.target.value)}
+                      className="w-full h-11 px-3 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-hidden focus:border-teal-600 focus:bg-white transition-all"
+                    >
+                      <option value="branch-downtown">Downtown Metro Studio (Main Clinic)</option>
+                      <option value="branch-westside">Westside Modern Center</option>
+                      <option value="branch-uptown">Uptown Dental Care & Pediatric</option>
+                    </select>
+                  </div>
+                </>
+              )}
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
