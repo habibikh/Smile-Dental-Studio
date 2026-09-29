@@ -1,0 +1,162 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny all unknown collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Connection testing endpoint
+    match /test/{docId} {
+      allow read, write: if true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    // Validation helpers
+    function isValidBranch(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() <= 200
+        && (!('city' in data) || (data.city is string && data.city.size() <= 100))
+        && (!('address' in data) || (data.address is string && data.address.size() <= 300))
+        && (!('phone' in data) || (data.phone is string && data.phone.size() <= 50));
+    }
+
+    function isValidDoctor(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() <= 150
+        && (!('specialization' in data) || (data.specialization is string && data.specialization.size() <= 200))
+        && (!('email' in data) || (data.email is string && data.email.size() <= 120))
+        && (!('bio' in data) || (data.bio is string && data.bio.size() <= 3000));
+    }
+
+    function isValidService(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() <= 200
+        && (!('category' in data) || (data.category is string && data.category.size() <= 100));
+    }
+
+    function isValidSchedule(data) {
+      return data.doctorId is string && data.doctorId.size() > 0 && data.doctorId.size() <= 100
+        && data.branchId is string && data.branchId.size() > 0 && data.branchId.size() <= 100;
+    }
+
+    function isValidAppointment(data) {
+      return data.appointmentCode is string && data.appointmentCode.size() > 0 && data.appointmentCode.size() <= 30
+        && data.patientName is string && data.patientName.size() > 0 && data.patientName.size() <= 150
+        && data.patientEmail is string && data.patientEmail.size() > 0 && data.patientEmail.size() <= 120
+        && data.doctorId is string && data.doctorId.size() > 0 && data.doctorId.size() <= 100
+        && data.branchId is string && data.branchId.size() > 0 && data.branchId.size() <= 100
+        && data.appointmentDate is string && data.appointmentDate.size() > 0 && data.appointmentDate.size() <= 30;
+    }
+
+    function isValidPatient(data) {
+      return data.fullName is string && data.fullName.size() > 0 && data.fullName.size() <= 150
+        && data.email is string && data.email.size() > 0 && data.email.size() <= 120;
+    }
+
+    function isValidClinicAdmin(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() <= 150
+        && data.email is string && data.email.size() > 0 && data.email.size() <= 120
+        && data.clinicId is string && data.clinicId.size() > 0 && data.clinicId.size() <= 100;
+    }
+
+    function isValidPA(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() <= 150
+        && data.doctorId is string && data.doctorId.size() > 0 && data.doctorId.size() <= 100;
+    }
+
+    // Branches collection
+    match /branches/{branchId} {
+      allow get, list: if true;
+      allow create, update: if isValidId(branchId) && isValidBranch(incoming());
+      allow delete: if isValidId(branchId);
+    }
+
+    // Doctors collection
+    match /doctors/{doctorId} {
+      allow get, list: if true;
+      allow create, update: if isValidId(doctorId) && isValidDoctor(incoming());
+      allow delete: if isValidId(doctorId);
+    }
+
+    // Services collection
+    match /services/{serviceId} {
+      allow get, list: if true;
+      allow create, update: if isValidId(serviceId) && isValidService(incoming());
+      allow delete: if isValidId(serviceId);
+    }
+
+    // Schedules collection
+    match /schedules/{scheduleId} {
+      allow get, list: if true;
+      allow create, update: if isValidId(scheduleId) && isValidSchedule(incoming());
+      allow delete: if isValidId(scheduleId);
+    }
+
+    // Appointments collection
+    match /appointments/{appointmentId} {
+      allow get, list: if true;
+      allow create, update: if isValidId(appointmentId) && isValidAppointment(incoming());
+      allow delete: if isValidId(appointmentId);
+    }
+
+    // Patients collection
+    match /patients/{patientId} {
+      allow get, list: if true;
+      allow create, update: if isValidId(patientId) && isValidPatient(incoming());
+      allow delete: if isValidId(patientId);
+    }
+
+    // Clinic Admins collection
+    match /clinicAdmins/{clinicAdminId} {
+      allow get, list: if true;
+      allow create, update: if isValidId(clinicAdminId) && isValidClinicAdmin(incoming());
+      allow delete: if isValidId(clinicAdminId);
+    }
+
+    // Admin Accounts collection
+    match /adminAccounts/{adminAccountId} {
+      allow get, list: if true;
+      allow create, update: if isValidId(adminAccountId);
+      allow delete: if isValidId(adminAccountId);
+    }
+
+    // Hospital Registrations collection
+    match /hospitalRegistrations/{registrationId} {
+      allow get, list: if true;
+      allow create, update: if isValidId(registrationId);
+      allow delete: if isValidId(registrationId);
+    }
+
+    // Personal Assistants collection
+    match /personalAssistants/{paId} {
+      allow get, list: if true;
+      allow create, update: if isValidId(paId) && isValidPA(incoming());
+      allow delete: if isValidId(paId);
+    }
+
+    // Admin Invite Tokens collection
+    match /adminInviteTokens/{tokenId} {
+      allow get, list: if true;
+      allow create, update: if isValidId(tokenId);
+      allow delete: if isValidId(tokenId);
+    }
+
+    // Holidays collection
+    match /holidays/{holidayId} {
+      allow get, list: if true;
+      allow create, update, delete: if isValidId(holidayId);
+    }
+
+    // Doctor Unavailabilities collection
+    match /unavailabilities/{unavailabilityId} {
+      allow get, list: if true;
+      allow create, update, delete: if isValidId(unavailabilityId);
+    }
+  }
+}

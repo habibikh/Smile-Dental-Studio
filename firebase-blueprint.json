@@ -1,0 +1,319 @@
+{
+  "entities": {
+    "Branch": {
+      "title": "Branch",
+      "description": "Dental clinic studio facility",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string", "maxLength": 200 },
+        "city": { "type": "string", "maxLength": 100 },
+        "address": { "type": "string", "maxLength": 300 },
+        "phone": { "type": "string", "maxLength": 50 },
+        "email": { "type": "string", "maxLength": 100 },
+        "openingHours": { "type": "string", "maxLength": 200 },
+        "description": { "type": "string", "maxLength": 2000 },
+        "imageUrl": { "type": "string", "maxLength": 500000 },
+        "rating": { "type": "number" },
+        "reviewsCount": { "type": "number" },
+        "active": { "type": "boolean" }
+      },
+      "required": ["id", "name", "city", "address", "phone"]
+    },
+    "Doctor": {
+      "title": "Doctor",
+      "description": "Dental specialist practitioner",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string", "maxLength": 150 },
+        "email": { "type": "string", "maxLength": 120 },
+        "password": { "type": "string", "maxLength": 100 },
+        "phone": { "type": "string", "maxLength": 50 },
+        "title": { "type": "string", "maxLength": 200 },
+        "qualification": { "type": "string", "maxLength": 300 },
+        "specialization": { "type": "string", "maxLength": 200 },
+        "experienceYears": { "type": "number" },
+        "bio": { "type": "string", "maxLength": 3000 },
+        "imageUrl": { "type": "string", "maxLength": 500000 },
+        "branchIds": { "type": "array" },
+        "serviceIds": { "type": "array" },
+        "rating": { "type": "number" },
+        "reviewsCount": { "type": "number" },
+        "languages": { "type": "array" },
+        "active": { "type": "boolean" }
+      },
+      "required": ["id", "name", "specialization"]
+    },
+    "Service": {
+      "title": "Service",
+      "description": "Clinical dental service or treatment procedure",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string", "maxLength": 200 },
+        "category": { "type": "string", "maxLength": 100 },
+        "description": { "type": "string", "maxLength": 2000 },
+        "shortDescription": { "type": "string", "maxLength": 500 },
+        "durationMinutes": { "type": "number" },
+        "price": { "type": "number" },
+        "imageUrl": { "type": "string", "maxLength": 500000 },
+        "iconName": { "type": "string", "maxLength": 50 },
+        "benefits": { "type": "array" },
+        "procedureSteps": { "type": "array" },
+        "active": { "type": "boolean" }
+      },
+      "required": ["id", "name", "category", "durationMinutes", "price"]
+    },
+    "DoctorSchedule": {
+      "title": "DoctorSchedule",
+      "description": "Weekly shift schedule of a doctor at a clinic",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "doctorId": { "type": "string" },
+        "branchId": { "type": "string" },
+        "dayOfWeek": { "type": "number" },
+        "startTime": { "type": "string", "maxLength": 10 },
+        "endTime": { "type": "string", "maxLength": 10 },
+        "breakStart": { "type": "string", "maxLength": 10 },
+        "breakEnd": { "type": "string", "maxLength": 10 },
+        "active": { "type": "boolean" }
+      },
+      "required": ["id", "doctorId", "branchId", "dayOfWeek", "startTime", "endTime"]
+    },
+    "Appointment": {
+      "title": "Appointment",
+      "description": "Patient booking for dental consultation or procedure",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "appointmentCode": { "type": "string", "maxLength": 20 },
+        "patientId": { "type": "string", "maxLength": 120 },
+        "patientName": { "type": "string", "maxLength": 150 },
+        "patientEmail": { "type": "string", "maxLength": 120 },
+        "patientPhone": { "type": "string", "maxLength": 50 },
+        "doctorId": { "type": "string", "maxLength": 100 },
+        "branchId": { "type": "string", "maxLength": 100 },
+        "serviceId": { "type": "string", "maxLength": 100 },
+        "appointmentDate": { "type": "string", "maxLength": 20 },
+        "startTime": { "type": "string", "maxLength": 10 },
+        "endTime": { "type": "string", "maxLength": 10 },
+        "status": { "type": "string", "maxLength": 30 },
+        "notes": { "type": "string", "maxLength": 2000 },
+        "cancelReason": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "appointmentCode", "patientName", "patientEmail", "doctorId", "branchId", "appointmentDate", "startTime"]
+    },
+    "PatientProfile": {
+      "title": "PatientProfile",
+      "description": "Patient record and clinical profile",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "authUserId": { "type": "string" },
+        "fullName": { "type": "string", "maxLength": 150 },
+        "email": { "type": "string", "maxLength": 120 },
+        "phone": { "type": "string", "maxLength": 50 },
+        "role": { "type": "string", "maxLength": 30 },
+        "clinicId": { "type": "string", "maxLength": 100 },
+        "dateOfBirth": { "type": "string", "maxLength": 20 },
+        "gender": { "type": "string", "maxLength": 30 },
+        "address": { "type": "string", "maxLength": 300 },
+        "dentalInsurance": { "type": "string", "maxLength": 200 },
+        "medicalNotes": { "type": "string", "maxLength": 2000 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "fullName", "email"]
+    },
+    "ClinicAdminAccount": {
+      "title": "ClinicAdminAccount",
+      "description": "Clinic administrator authorized to manage a clinic studio and doctors",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string", "maxLength": 150 },
+        "email": { "type": "string", "maxLength": 120 },
+        "password": { "type": "string", "maxLength": 100 },
+        "phone": { "type": "string", "maxLength": 50 },
+        "clinicId": { "type": "string", "maxLength": 100 },
+        "clinicName": { "type": "string", "maxLength": 200 },
+        "role": { "type": "string", "maxLength": 30 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name", "email", "clinicId"]
+    },
+    "AdminAccount": {
+      "title": "AdminAccount",
+      "description": "System or hospital administrator account",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "hospitalId": { "type": "string", "maxLength": 100 },
+        "hospitalName": { "type": "string", "maxLength": 200 },
+        "name": { "type": "string", "maxLength": 150 },
+        "email": { "type": "string", "maxLength": 120 },
+        "password": { "type": "string", "maxLength": 100 },
+        "role": { "type": "string", "maxLength": 30 },
+        "phone": { "type": "string", "maxLength": 50 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name", "email"]
+    },
+    "HospitalRegistration": {
+      "title": "HospitalRegistration",
+      "description": "Hospital licensing and registration records",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "hospitalName": { "type": "string", "maxLength": 200 },
+        "licenseNumber": { "type": "string", "maxLength": 100 },
+        "directorName": { "type": "string", "maxLength": 150 },
+        "officialEmail": { "type": "string", "maxLength": 120 },
+        "phone": { "type": "string", "maxLength": 50 },
+        "city": { "type": "string", "maxLength": 100 },
+        "address": { "type": "string", "maxLength": 300 },
+        "suiteCount": { "type": "number" },
+        "registrationFeeAmount": { "type": "number" },
+        "feeCurrency": { "type": "string", "maxLength": 10 },
+        "feePaymentStatus": { "type": "string", "maxLength": 30 },
+        "paymentMethod": { "type": "string", "maxLength": 100 },
+        "transactionId": { "type": "string", "maxLength": 100 },
+        "paidAt": { "type": "string" },
+        "adminInviteToken": { "type": "string", "maxLength": 200 },
+        "adminInviteTokenExpiresAt": { "type": "string" },
+        "adminInviteTokenUsed": { "type": "boolean" },
+        "adminCreatedEmail": { "type": "string", "maxLength": 120 },
+        "adminCreatedAt": { "type": "string" },
+        "panelProvisioned": { "type": "boolean" },
+        "panelProvisionedAt": { "type": "string" },
+        "panelProvisionedBy": { "type": "string", "maxLength": 100 },
+        "branchId": { "type": "string", "maxLength": 100 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "hospitalName", "licenseNumber", "officialEmail"]
+    },
+    "PersonalAssistant": {
+      "title": "PersonalAssistant",
+      "description": "Single personal assistant assigned to a doctor",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "doctorId": { "type": "string", "maxLength": 100 },
+        "doctorName": { "type": "string", "maxLength": 150 },
+        "name": { "type": "string", "maxLength": 150 },
+        "title": { "type": "string", "maxLength": 150 },
+        "email": { "type": "string", "maxLength": 120 },
+        "phone": { "type": "string", "maxLength": 50 },
+        "password": { "type": "string", "maxLength": 100 },
+        "avatarUrl": { "type": "string", "maxLength": 500000 },
+        "status": { "type": "string", "maxLength": 30 },
+        "permissions": { "type": "object" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "doctorId", "name", "email"]
+    },
+    "AdminInviteToken": {
+      "title": "AdminInviteToken",
+      "description": "Single-use invitation token for hospital admin activation",
+      "type": "object",
+      "properties": {
+        "token": { "type": "string", "maxLength": 200 },
+        "hospitalId": { "type": "string", "maxLength": 100 },
+        "hospitalName": { "type": "string", "maxLength": 200 },
+        "officialEmail": { "type": "string", "maxLength": 120 },
+        "directorName": { "type": "string", "maxLength": 150 },
+        "expiresAt": { "type": "string" },
+        "used": { "type": "boolean" },
+        "usedAt": { "type": "string" },
+        "createdAdminEmail": { "type": "string", "maxLength": 120 },
+        "createdAdminName": { "type": "string", "maxLength": 150 }
+      },
+      "required": ["token", "hospitalId", "expiresAt", "used"]
+    },
+    "ClinicHoliday": {
+      "title": "ClinicHoliday",
+      "description": "Clinic holiday or closure date",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string", "maxLength": 20 },
+        "reason": { "type": "string", "maxLength": 200 },
+        "branchId": { "type": "string", "maxLength": 100 }
+      },
+      "required": ["id", "date", "reason"]
+    },
+    "DoctorUnavailability": {
+      "title": "DoctorUnavailability",
+      "description": "Time off or leave date for a doctor",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "doctorId": { "type": "string", "maxLength": 100 },
+        "date": { "type": "string", "maxLength": 20 },
+        "startTime": { "type": "string", "maxLength": 10 },
+        "endTime": { "type": "string", "maxLength": 10 },
+        "reason": { "type": "string", "maxLength": 200 }
+      },
+      "required": ["id", "doctorId", "date", "reason"]
+    }
+  },
+  "firestore": {
+    "/branches/{branchId}": {
+      "schema": "Branch",
+      "description": "Dental clinic branches"
+    },
+    "/doctors/{doctorId}": {
+      "schema": "Doctor",
+      "description": "Specialist doctors"
+    },
+    "/services/{serviceId}": {
+      "schema": "Service",
+      "description": "Dental services"
+    },
+    "/schedules/{scheduleId}": {
+      "schema": "DoctorSchedule",
+      "description": "Doctor shifts"
+    },
+    "/appointments/{appointmentId}": {
+      "schema": "Appointment",
+      "description": "Patient appointments"
+    },
+    "/patients/{patientId}": {
+      "schema": "PatientProfile",
+      "description": "Patient profiles and accounts"
+    },
+    "/clinicAdmins/{clinicAdminId}": {
+      "schema": "ClinicAdminAccount",
+      "description": "Clinic administrator accounts"
+    },
+    "/adminAccounts/{adminAccountId}": {
+      "schema": "AdminAccount",
+      "description": "Application and hospital admins"
+    },
+    "/hospitalRegistrations/{registrationId}": {
+      "schema": "HospitalRegistration",
+      "description": "Hospital licenses"
+    },
+    "/personalAssistants/{paId}": {
+      "schema": "PersonalAssistant",
+      "description": "Doctor personal assistants"
+    },
+    "/adminInviteTokens/{tokenId}": {
+      "schema": "AdminInviteToken",
+      "description": "Single-use admin invite tokens"
+    },
+    "/holidays/{holidayId}": {
+      "schema": "ClinicHoliday",
+      "description": "Clinic holidays"
+    },
+    "/unavailabilities/{unavailabilityId}": {
+      "schema": "DoctorUnavailability",
+      "description": "Doctor leave entries"
+    }
+  }
+}

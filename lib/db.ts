@@ -16,8 +16,19 @@ import {
   AdminAccount,
   ClinicAdminAccount
 } from '@/types/dental';
+import {
+  collection,
+  doc,
+  getDocs,
+  getDoc,
+  setDoc,
+  deleteDoc,
+  updateDoc,
+  writeBatch
+} from 'firebase/firestore';
+import { db, handleFirestoreError, OperationType } from './firebase';
 
-// Default In-Memory / Hybrid Dataset initialized with full clinic data
+// Default initial dataset
 const INITIAL_BRANCHES: Branch[] = [
   {
     id: 'branch-downtown',
@@ -149,20 +160,6 @@ const INITIAL_SERVICES: Service[] = [
     active: true
   },
   {
-    id: 'srv-porcelain-veneers',
-    name: 'Custom Porcelain Veneers Assessment',
-    category: 'Cosmetic',
-    description: 'Ultra-thin handcrafted ceramic veneers engineered to correct chips, gaps, alignment flaws, and deep stubborn discoloration.',
-    shortDescription: 'Artisanal ultra-thin ceramics for a flawless Hollywood smile.',
-    durationMinutes: 60,
-    price: 350.00,
-    imageUrl: 'https://picsum.photos/seed/veneers/800/600',
-    iconName: 'Layers',
-    benefits: ['Natural light-reflecting translucency', 'Resistant to coffee and tobacco stains', 'Custom crafted to facial aesthetics', 'Minimal enamel preparation needed'],
-    procedureSteps: ['Facial harmony & smile design analysis', 'Diagnostic wax-up & aesthetic try-in', 'Micro-preparation & master impression', 'Bonding with dual-cure medical resin'],
-    active: true
-  },
-  {
     id: 'srv-pediatric-care',
     name: 'Pediatric Gentle Dental Exam & Sealant',
     category: 'Pediatric',
@@ -174,34 +171,6 @@ const INITIAL_SERVICES: Service[] = [
     iconName: 'Heart',
     benefits: ['Builds lifelong positive dental trust', 'Protects deep fissures against caries', 'Gentle, non-intimidating approach', 'Kids prize & certificate included'],
     procedureSteps: ['Friendly welcoming introduction', 'Count & shine gentle tooth check', 'BPA-free protective molar sealant coat', 'Topical strawberry fluoridation'],
-    active: true
-  },
-  {
-    id: 'srv-emergency-relief',
-    name: 'Urgent Dental Care & Pain Relief',
-    category: 'General',
-    description: 'Same-day urgent triage and treatment for broken teeth, lost fillings, acute abscess, trauma, or sudden excruciating toothaches.',
-    shortDescription: 'Priority emergency care to stop pain and protect teeth.',
-    durationMinutes: 45,
-    price: 160.00,
-    imageUrl: 'https://picsum.photos/seed/emergencydent/800/600',
-    iconName: 'Zap',
-    benefits: ['Immediate same-day relief', 'Digital diagnostics to identify source', 'Temporary or definitive repair', 'Prescriptions provided as needed'],
-    procedureSteps: ['Urgent triage & diagnostic X-ray', 'Targeted pain-blocking anesthesia', 'Stabilization of injury or infection', 'Prescription & aftercare scheduling'],
-    active: true
-  },
-  {
-    id: 'srv-periodontal-therapy',
-    name: 'Deep Periodontal Scaling & Root Planing',
-    category: 'General',
-    description: 'Specialized deep cleaning beneath gumline to eliminate harmful subgingival bacteria colonies and arrest gum recession.',
-    shortDescription: 'Targeted subgingival treatment to reverse early gum disease.',
-    durationMinutes: 60,
-    price: 280.00,
-    imageUrl: 'https://picsum.photos/seed/gumtherapy/800/600',
-    iconName: 'ShieldCheck',
-    benefits: ['Halts gum inflammation and bleeding', 'Protects alveolar bone structure', 'Eliminates deep bacterial pockets', 'Smoothes roots for gum re-attachment'],
-    procedureSteps: ['Periodontal pocket charting', 'Targeted localized numbing', 'Ultrasonic subgingival biofilm removal', 'Antibacterial laser decontamination'],
     active: true
   }
 ];
@@ -220,7 +189,7 @@ const INITIAL_DOCTORS: Doctor[] = [
     bio: 'Dr. Sarah Chen is an internationally recognized aesthetic dentist passionate about minimally invasive smile makeovers, porcelain veneers, and laser teeth whitening with over 14 years of clinical experience.',
     imageUrl: 'https://picsum.photos/seed/drsarahchen/800/800',
     branchIds: ['branch-downtown', 'branch-westside'],
-    serviceIds: ['srv-checkup-cleaning', 'srv-whitening', 'srv-porcelain-veneers', 'srv-emergency-relief'],
+    serviceIds: ['srv-checkup-cleaning', 'srv-whitening', 'srv-invisalign'],
     rating: 4.9,
     reviewsCount: 142,
     languages: ['English', 'Mandarin'],
@@ -261,26 +230,7 @@ const INITIAL_DOCTORS: Doctor[] = [
     reviewsCount: 160,
     languages: ['English', 'Spanish'],
     branchIds: ['branch-northshore', 'branch-downtown'],
-    serviceIds: ['srv-dental-implant', 'srv-emergency-relief'],
-    active: true
-  },
-  {
-    id: 'dr-marcus-vance',
-    name: 'Dr. Marcus Vance, DDS',
-    email: 'dr.marcus.vance@smiledental.com',
-    password: 'doctor123',
-    phone: '(555) 234-1104',
-    title: 'Chief Endodontist & Micro-Surgeon',
-    qualification: 'DDS (NYU College of Dentistry), Certificate in Endodontics',
-    specialization: 'Microscopic Endodontics (Root Canal)',
-    experienceYears: 11,
-    bio: 'Dedicated to painless root canal treatments using high-magnification surgical operating microscopes to preserve natural teeth for a lifetime without discomfort.',
-    imageUrl: 'https://picsum.photos/seed/drmarcus/800/800',
-    rating: 4.8,
-    reviewsCount: 97,
-    languages: ['English'],
-    branchIds: ['branch-northshore', 'branch-downtown'],
-    serviceIds: ['srv-root-canal', 'srv-emergency-relief'],
+    serviceIds: ['srv-dental-implant'],
     active: true
   },
   {
@@ -301,71 +251,17 @@ const INITIAL_DOCTORS: Doctor[] = [
     branchIds: ['branch-uptown', 'branch-westside'],
     serviceIds: ['srv-pediatric-care', 'srv-checkup-cleaning', 'srv-whitening'],
     active: true
-  },
-  {
-    id: 'dr-david-kim',
-    name: 'Dr. David Kim, DDS',
-    email: 'dr.david.kim@smiledental.com',
-    password: 'doctor123',
-    phone: '(555) 234-1106',
-    title: 'General & Periodontal Dentist',
-    qualification: 'DDS (UCLA School of Dentistry), AAP Member',
-    specialization: 'General Dentistry & Periodontics',
-    experienceYears: 10,
-    bio: 'Focused on holistic preventive care, comprehensive oral hygiene, and non-surgical gum health management with gentle ultrasonic technologies.',
-    imageUrl: 'https://picsum.photos/seed/drdavid/800/800',
-    rating: 4.8,
-    reviewsCount: 88,
-    languages: ['English', 'Korean'],
-    branchIds: ['branch-downtown', 'branch-uptown'],
-    serviceIds: ['srv-checkup-cleaning', 'srv-periodontal-therapy', 'srv-emergency-relief', 'srv-whitening'],
-    active: true
   }
 ];
 
 const INITIAL_SCHEDULES: DoctorSchedule[] = [
-  // Dr. Sarah Chen (Mon=1, Tue=2, Thu=4 Downtown; Wed=3, Fri=5 Westside)
   { id: 'sch-1', doctorId: 'dr-sarah-chen', branchId: 'branch-downtown', dayOfWeek: 1, startTime: '09:00', endTime: '17:00', breakStart: '13:00', breakEnd: '14:00', active: true },
   { id: 'sch-2', doctorId: 'dr-sarah-chen', branchId: 'branch-downtown', dayOfWeek: 2, startTime: '09:00', endTime: '17:00', breakStart: '13:00', breakEnd: '14:00', active: true },
   { id: 'sch-3', doctorId: 'dr-sarah-chen', branchId: 'branch-westside', dayOfWeek: 3, startTime: '09:00', endTime: '17:00', breakStart: '13:00', breakEnd: '14:00', active: true },
-  { id: 'sch-4', doctorId: 'dr-sarah-chen', branchId: 'branch-downtown', dayOfWeek: 4, startTime: '09:00', endTime: '17:00', breakStart: '13:00', breakEnd: '14:00', active: true },
-  { id: 'sch-5', doctorId: 'dr-sarah-chen', branchId: 'branch-westside', dayOfWeek: 5, startTime: '09:00', endTime: '16:00', breakStart: '12:30', breakEnd: '13:30', active: true },
-
-  // Dr. Ahmed Khan (Mon=1, Wed=3 Downtown; Tue=2, Thu=4 Westside; Sat=6 Uptown)
-  { id: 'sch-6', doctorId: 'dr-ahmed-khan', branchId: 'branch-downtown', dayOfWeek: 1, startTime: '08:30', endTime: '16:30', breakStart: '12:30', breakEnd: '13:30', active: true },
-  { id: 'sch-7', doctorId: 'dr-ahmed-khan', branchId: 'branch-westside', dayOfWeek: 2, startTime: '09:00', endTime: '17:00', breakStart: '13:00', breakEnd: '14:00', active: true },
-  { id: 'sch-8', doctorId: 'dr-ahmed-khan', branchId: 'branch-downtown', dayOfWeek: 3, startTime: '08:30', endTime: '16:30', breakStart: '12:30', breakEnd: '13:30', active: true },
-  { id: 'sch-9', doctorId: 'dr-ahmed-khan', branchId: 'branch-westside', dayOfWeek: 4, startTime: '09:00', endTime: '17:00', breakStart: '13:00', breakEnd: '14:00', active: true },
-  { id: 'sch-10', doctorId: 'dr-ahmed-khan', branchId: 'branch-uptown', dayOfWeek: 6, startTime: '09:00', endTime: '14:00', breakStart: '12:00', breakEnd: '12:30', active: true },
-
-  // Dr. Elena Rodriguez (Mon-Thu Northshore; Fri Downtown)
-  { id: 'sch-11', doctorId: 'dr-elena-rodriguez', branchId: 'branch-northshore', dayOfWeek: 1, startTime: '08:30', endTime: '17:30', breakStart: '13:00', breakEnd: '14:00', active: true },
-  { id: 'sch-12', doctorId: 'dr-elena-rodriguez', branchId: 'branch-northshore', dayOfWeek: 2, startTime: '08:30', endTime: '17:30', breakStart: '13:00', breakEnd: '14:00', active: true },
-  { id: 'sch-13', doctorId: 'dr-elena-rodriguez', branchId: 'branch-northshore', dayOfWeek: 3, startTime: '08:30', endTime: '17:30', breakStart: '13:00', breakEnd: '14:00', active: true },
-  { id: 'sch-14', doctorId: 'dr-elena-rodriguez', branchId: 'branch-northshore', dayOfWeek: 4, startTime: '08:30', endTime: '17:30', breakStart: '13:00', breakEnd: '14:00', active: true },
-  { id: 'sch-15', doctorId: 'dr-elena-rodriguez', branchId: 'branch-downtown', dayOfWeek: 5, startTime: '09:00', endTime: '16:00', breakStart: '12:30', breakEnd: '13:30', active: true },
-
-  // Dr. Marcus Vance (Mon, Wed Downtown; Tue, Thu, Fri Northshore)
-  { id: 'sch-16', doctorId: 'dr-marcus-vance', branchId: 'branch-downtown', dayOfWeek: 1, startTime: '09:00', endTime: '17:00', breakStart: '13:00', breakEnd: '14:00', active: true },
-  { id: 'sch-17', doctorId: 'dr-marcus-vance', branchId: 'branch-northshore', dayOfWeek: 2, startTime: '09:00', endTime: '17:00', breakStart: '13:00', breakEnd: '14:00', active: true },
-  { id: 'sch-18', doctorId: 'dr-marcus-vance', branchId: 'branch-downtown', dayOfWeek: 3, startTime: '09:00', endTime: '17:00', breakStart: '13:00', breakEnd: '14:00', active: true },
-  { id: 'sch-19', doctorId: 'dr-marcus-vance', branchId: 'branch-northshore', dayOfWeek: 4, startTime: '09:00', endTime: '17:00', breakStart: '13:00', breakEnd: '14:00', active: true },
-  { id: 'sch-20', doctorId: 'dr-marcus-vance', branchId: 'branch-northshore', dayOfWeek: 5, startTime: '09:00', endTime: '15:00', breakStart: '12:00', breakEnd: '13:00', active: true },
-
-  // Dr. Emily Watson (Mon, Wed, Fri Uptown; Tue, Thu Westside)
-  { id: 'sch-21', doctorId: 'dr-emily-watson', branchId: 'branch-uptown', dayOfWeek: 1, startTime: '09:00', endTime: '17:00', breakStart: '13:00', breakEnd: '14:00', active: true },
-  { id: 'sch-22', doctorId: 'dr-emily-watson', branchId: 'branch-westside', dayOfWeek: 2, startTime: '09:00', endTime: '17:00', breakStart: '13:00', breakEnd: '14:00', active: true },
-  { id: 'sch-23', doctorId: 'dr-emily-watson', branchId: 'branch-uptown', dayOfWeek: 3, startTime: '09:00', endTime: '17:00', breakStart: '13:00', breakEnd: '14:00', active: true },
-  { id: 'sch-24', doctorId: 'dr-emily-watson', branchId: 'branch-westside', dayOfWeek: 4, startTime: '09:00', endTime: '17:00', breakStart: '13:00', breakEnd: '14:00', active: true },
-  { id: 'sch-25', doctorId: 'dr-emily-watson', branchId: 'branch-uptown', dayOfWeek: 5, startTime: '09:00', endTime: '16:00', breakStart: '12:30', breakEnd: '13:30', active: true },
-
-  // Dr. David Kim (Mon, Wed, Fri Downtown; Tue, Thu, Sat Uptown)
-  { id: 'sch-26', doctorId: 'dr-david-kim', branchId: 'branch-downtown', dayOfWeek: 1, startTime: '08:30', endTime: '16:30', breakStart: '12:30', breakEnd: '13:30', active: true },
-  { id: 'sch-27', doctorId: 'dr-david-kim', branchId: 'branch-uptown', dayOfWeek: 2, startTime: '09:00', endTime: '17:00', breakStart: '13:00', breakEnd: '14:00', active: true },
-  { id: 'sch-28', doctorId: 'dr-david-kim', branchId: 'branch-downtown', dayOfWeek: 3, startTime: '08:30', endTime: '16:30', breakStart: '12:30', breakEnd: '13:30', active: true },
-  { id: 'sch-29', doctorId: 'dr-david-kim', branchId: 'branch-uptown', dayOfWeek: 4, startTime: '09:00', endTime: '17:00', breakStart: '13:00', breakEnd: '14:00', active: true },
-  { id: 'sch-30', doctorId: 'dr-david-kim', branchId: 'branch-downtown', dayOfWeek: 5, startTime: '08:30', endTime: '16:00', breakStart: '12:30', breakEnd: '13:30', active: true },
-  { id: 'sch-31', doctorId: 'dr-david-kim', branchId: 'branch-uptown', dayOfWeek: 6, startTime: '09:00', endTime: '14:00', breakStart: '12:00', breakEnd: '12:30', active: true },
+  { id: 'sch-4', doctorId: 'dr-ahmed-khan', branchId: 'branch-downtown', dayOfWeek: 1, startTime: '08:30', endTime: '16:30', breakStart: '12:30', breakEnd: '13:30', active: true },
+  { id: 'sch-5', doctorId: 'dr-ahmed-khan', branchId: 'branch-westside', dayOfWeek: 2, startTime: '09:00', endTime: '17:00', breakStart: '13:00', breakEnd: '14:00', active: true },
+  { id: 'sch-6', doctorId: 'dr-elena-rodriguez', branchId: 'branch-northshore', dayOfWeek: 1, startTime: '08:30', endTime: '17:30', breakStart: '13:00', breakEnd: '14:00', active: true },
+  { id: 'sch-7', doctorId: 'dr-emily-watson', branchId: 'branch-uptown', dayOfWeek: 1, startTime: '09:00', endTime: '17:00', breakStart: '13:00', breakEnd: '14:00', active: true },
 ];
 
 const INITIAL_HOLIDAYS: ClinicHoliday[] = [
@@ -374,9 +270,6 @@ const INITIAL_HOLIDAYS: ClinicHoliday[] = [
   { id: 'hol-3', date: '2026-12-25', reason: 'Christmas Day Closure' }
 ];
 
-const INITIAL_UNAVAILABILITIES: DoctorUnavailability[] = [];
-
-// Seed initial registered patients
 const INITIAL_PATIENTS: PatientProfile[] = [
   {
     id: 'pat-alex-morgan',
@@ -390,58 +283,6 @@ const INITIAL_PATIENTS: PatientProfile[] = [
     medicalNotes: 'Mild sensitivity to cold drinks on lower right quadrant.',
     createdAt: '2026-01-05T10:30:00.000Z',
     updatedAt: '2026-01-05T10:30:00.000Z',
-  },
-  {
-    id: 'pat-sarah-connor',
-    fullName: 'Sarah Connor',
-    email: 'sarah.connor@gmail.com',
-    phone: '(555) 234-9812',
-    dateOfBirth: '1988-11-23',
-    gender: 'Female',
-    address: '120 Skyline Dr, Metro City',
-    dentalInsurance: 'MetLife Dental PPO (ID #ML-9921)',
-    medicalNotes: 'Latex allergy. Prefers nitrile dental gloves.',
-    createdAt: '2026-01-12T14:15:00.000Z',
-    updatedAt: '2026-01-12T14:15:00.000Z',
-  },
-  {
-    id: 'pat-david-kim',
-    fullName: 'David Kim',
-    email: 'david.kim@techcorp.io',
-    phone: '(555) 441-7782',
-    dateOfBirth: '1982-08-04',
-    gender: 'Male',
-    address: '55 Pine Street, Apt 14B, Metro City',
-    dentalInsurance: 'Guardian Dental Guard (ID #GD-44120)',
-    medicalNotes: 'Completed lower molar implant in 2025. Annual checkup.',
-    createdAt: '2026-01-20T09:00:00.000Z',
-    updatedAt: '2026-01-20T09:00:00.000Z',
-  },
-  {
-    id: 'pat-elena-rostova',
-    fullName: 'Elena Rostova',
-    email: 'elena.rostova@designworks.com',
-    phone: '(555) 672-3390',
-    dateOfBirth: '1995-03-19',
-    gender: 'Female',
-    address: '808 Arts District Ave, Metro City',
-    dentalInsurance: 'Aetna Dental Direct (ID #AET-10293)',
-    medicalNotes: 'Invisalign aligner treatment active.',
-    createdAt: '2026-02-01T11:45:00.000Z',
-    updatedAt: '2026-02-01T11:45:00.000Z',
-  },
-  {
-    id: 'pat-marcus-sterling',
-    fullName: 'Marcus Sterling',
-    email: 'marcus.sterling@financegrp.com',
-    phone: '(555) 912-4433',
-    dateOfBirth: '1979-12-01',
-    gender: 'Male',
-    address: '900 Financial Plaza, Metro City',
-    dentalInsurance: 'Cigna Dental Total Care (ID #CG-8831)',
-    medicalNotes: 'Bruxism (teeth grinding at night). Uses custom nightguard.',
-    createdAt: '2026-02-10T16:20:00.000Z',
-    updatedAt: '2026-02-10T16:20:00.000Z',
   },
   {
     id: 'pat-habib-ullah',
@@ -458,7 +299,6 @@ const INITIAL_PATIENTS: PatientProfile[] = [
   }
 ];
 
-// Seed sample patient appointment for the interactive demo
 const INITIAL_APPOINTMENTS: Appointment[] = [
   {
     id: 'apt-seed-1',
@@ -470,201 +310,14 @@ const INITIAL_APPOINTMENTS: Appointment[] = [
     doctorId: 'dr-sarah-chen',
     branchId: 'branch-downtown',
     serviceId: 'srv-checkup-cleaning',
-    appointmentDate: new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0], // 2 days in future
+    appointmentDate: new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0],
     startTime: '10:00',
     endTime: '10:45',
     status: 'confirmed',
     notes: 'Routine 6-month checkup and tartar polish.',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'apt-seed-2',
-    appointmentCode: 'SD-9124',
-    patientId: 'pat-elena-rostova',
-    patientName: 'Elena Rostova',
-    patientEmail: 'elena.rostova@designworks.com',
-    patientPhone: '(555) 672-3390',
-    doctorId: 'dr-emily-taylor',
-    branchId: 'branch-westside',
-    serviceId: 'srv-invisalign',
-    appointmentDate: new Date(Date.now() + 86400000 * 4).toISOString().split('T')[0],
-    startTime: '11:00',
-    endTime: '11:45',
-    status: 'confirmed',
-    notes: 'Invisalign bi-monthly tracking checkup.',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'apt-seed-3',
-    appointmentCode: 'SD-3051',
-    patientId: 'pat-david-kim',
-    patientName: 'David Kim',
-    patientEmail: 'david.kim@techcorp.io',
-    patientPhone: '(555) 441-7782',
-    doctorId: 'dr-marcus-vance',
-    branchId: 'branch-northshore',
-    serviceId: 'srv-implants',
-    appointmentDate: new Date(Date.now() + 86400000 * 5).toISOString().split('T')[0],
-    startTime: '14:00',
-    endTime: '15:30',
-    status: 'confirmed',
-    notes: 'Post-op 3D CBCT implant osseointegration scan.',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
   }
-];
-
-// Initial Personal Assistants (Strictly 1 PA per Doctor)
-const INITIAL_PERSONAL_ASSISTANTS: PersonalAssistant[] = [
-  {
-    id: 'pa-sarah-jenkins',
-    doctorId: 'dr-sarah-chen',
-    doctorName: 'Dr. Sarah Chen, DDS',
-    name: 'Sarah Jenkins, RMA',
-    title: 'Clinical PA & Registered Medical Assistant',
-    email: 'sarah.pa@smiledental.com',
-    phone: '(555) 234-8801',
-    password: 'pa123',
-    avatarUrl: 'https://picsum.photos/seed/pasarah/400/400',
-    status: 'active',
-    permissions: {
-      canManageAppointments: true,
-      canManageSchedules: true,
-      canViewPatientNotes: true,
-      canReschedule: true,
-      canSendReminders: true,
-    },
-    createdAt: '2026-01-15T09:00:00.000Z',
-    updatedAt: '2026-01-15T09:00:00.000Z',
-  },
-  {
-    id: 'pa-alex-rivera',
-    doctorId: 'dr-ahmed-khan',
-    doctorName: 'Dr. Ahmed Khan, DMD, MS',
-    name: 'Alex Rivera, CDA',
-    title: 'Orthodontic Personal Coordinator',
-    email: 'alex.pa@smiledental.com',
-    phone: '(555) 234-8802',
-    password: 'pa123',
-    avatarUrl: 'https://picsum.photos/seed/paalex/400/400',
-    status: 'active',
-    permissions: {
-      canManageAppointments: true,
-      canManageSchedules: true,
-      canViewPatientNotes: true,
-      canReschedule: true,
-      canSendReminders: true,
-    },
-    createdAt: '2026-01-15T09:00:00.000Z',
-    updatedAt: '2026-01-15T09:00:00.000Z',
-  },
-  {
-    id: 'pa-jordan-hayes',
-    doctorId: 'dr-elena-rodriguez',
-    doctorName: 'Dr. Elena Rodriguez, DDS',
-    name: 'Jordan Hayes, RDA',
-    title: 'Surgical PA & Implant Care Assistant',
-    email: 'jordan.pa@smiledental.com',
-    phone: '(555) 234-8803',
-    password: 'pa123',
-    avatarUrl: 'https://picsum.photos/seed/pajordan/400/400',
-    status: 'active',
-    permissions: {
-      canManageAppointments: true,
-      canManageSchedules: true,
-      canViewPatientNotes: true,
-      canReschedule: true,
-      canSendReminders: true,
-    },
-    createdAt: '2026-01-15T09:00:00.000Z',
-    updatedAt: '2026-01-15T09:00:00.000Z',
-  },
-];
-
-// Initial Hospital Registrations (Hospital application service fee confirmed)
-const INITIAL_HOSPITAL_REGISTRATIONS: HospitalRegistration[] = [
-  {
-    id: 'hosp-metro-smile',
-    hospitalName: 'Metro Smile Dental Hospital & Surgical Pavilion',
-    licenseNumber: 'HOSP-MED-2026-88392',
-    directorName: 'Dr. Jonathan Reynolds, Chief Medical Officer',
-    officialEmail: 'licensing@smiledental.com',
-    phone: '(555) 234-5000',
-    city: 'Metro City',
-    address: '100 Grand Medical Way, Pavilion 4',
-    suiteCount: 18,
-    registrationFeeAmount: 499.00,
-    feeCurrency: 'USD',
-    feePaymentStatus: 'verified',
-    paymentMethod: 'Credit Card (Corporate)',
-    transactionId: 'TXN-HOSP-9948271',
-    paidAt: '2026-01-10T12:00:00.000Z',
-    adminInviteToken: 'adm_inv_demo_primary_claimed',
-    adminInviteTokenExpiresAt: '2026-01-12T12:00:00.000Z',
-    adminInviteTokenUsed: true,
-    adminCreatedEmail: 'admin@smiledental.com',
-    adminCreatedAt: '2026-01-10T14:30:00.000Z',
-    panelProvisioned: true,
-    panelProvisionedAt: '2026-01-10T12:05:00.000Z',
-    panelProvisionedBy: 'Application Super Admin',
-    branchId: 'branch-downtown',
-    createdAt: '2026-01-10T12:00:00.000Z',
-  },
-  {
-    id: 'hosp-apex-maxillo',
-    hospitalName: 'Apex Dental Hospital & Maxillofacial Center',
-    licenseNumber: 'HOSP-APEX-2026-44019',
-    directorName: 'Dr. Marcus Vance, Surgical Director',
-    officialEmail: 'operations@apexdentalhospital.org',
-    phone: '(555) 678-9100',
-    city: 'Metro City',
-    address: '880 Pavilion Expressway, Tower North',
-    suiteCount: 12,
-    registrationFeeAmount: 499.00,
-    feeCurrency: 'USD',
-    feePaymentStatus: 'verified',
-    paymentMethod: 'Bank Wire / Corporate ACH',
-    transactionId: 'TXN-HOSP-7719204',
-    paidAt: '2026-02-01T09:30:00.000Z',
-    adminInviteToken: 'adm_inv_apex_pending_activation_772',
-    adminInviteTokenExpiresAt: '2026-12-31T23:59:59.000Z',
-    adminInviteTokenUsed: false,
-    panelProvisioned: false, // Awaiting Application Admin creation
-    branchId: 'branch-northshore',
-    createdAt: '2026-02-01T09:30:00.000Z',
-  },
-];
-
-// Initial Single-Use Admin Invite Tokens
-const INITIAL_ADMIN_INVITE_TOKENS: AdminInviteToken[] = [
-  {
-    token: 'adm_inv_demo_primary_claimed',
-    hospitalId: 'hosp-metro-smile',
-    hospitalName: 'Metro Smile Dental Hospital & Surgical Pavilion',
-    officialEmail: 'licensing@smiledental.com',
-    directorName: 'Dr. Jonathan Reynolds',
-    expiresAt: '2026-01-12T12:00:00.000Z',
-    used: true,
-    usedAt: '2026-01-10T14:30:00.000Z',
-    createdAdminEmail: 'admin@smiledental.com',
-    createdAdminName: 'Hospital System Administrator',
-  },
-];
-
-const INITIAL_ADMIN_ACCOUNTS: AdminAccount[] = [
-  {
-    id: 'adm-primary-1',
-    hospitalId: 'hosp-metro-smile',
-    hospitalName: 'Metro Smile Dental Hospital & Surgical Pavilion',
-    name: 'Hospital System Administrator',
-    email: 'admin@smiledental.com',
-    password: 'smile1234',
-    role: 'primary_admin',
-    phone: '(555) 234-5000',
-    createdAt: '2026-01-10T14:30:00.000Z',
-  },
 ];
 
 const INITIAL_CLINIC_ADMINS: ClinicAdminAccount[] = [
@@ -678,10 +331,24 @@ const INITIAL_CLINIC_ADMINS: ClinicAdminAccount[] = [
     clinicName: 'Smile Dental - Downtown Metro',
     role: 'clinic_admin',
     createdAt: '2026-01-10T14:30:00.000Z',
-  },
+  }
 ];
 
-// Persistent Global Storage Store (survives Next.js dev reload cycles)
+const INITIAL_ADMIN_ACCOUNTS: AdminAccount[] = [
+  {
+    id: 'adm-primary-1',
+    hospitalId: 'hosp-metro-smile',
+    hospitalName: 'Metro Smile Dental Hospital & Surgical Pavilion',
+    name: 'Hospital System Administrator',
+    email: 'admin@smiledental.com',
+    password: 'smile1234',
+    role: 'primary_admin',
+    phone: '(555) 234-5000',
+    createdAt: '2026-01-10T14:30:00.000Z',
+  }
+];
+
+// Persistent local memory store for fast sync caching
 declare global {
   var __smileDentalStore: {
     branches: Branch[];
@@ -697,6 +364,7 @@ declare global {
     adminInviteTokens: AdminInviteToken[];
     adminAccounts: AdminAccount[];
     clinicAdmins: ClinicAdminAccount[];
+    initializedFirestore: boolean;
   } | undefined;
 }
 
@@ -714,33 +382,172 @@ function getStore() {
       doctors: [...INITIAL_DOCTORS],
       schedules: [...INITIAL_SCHEDULES],
       holidays: [...INITIAL_HOLIDAYS],
-      unavailabilities: [...INITIAL_UNAVAILABILITIES],
+      unavailabilities: [],
       appointments: [...INITIAL_APPOINTMENTS],
       patients: initPatientsMap(),
-      personalAssistants: [...INITIAL_PERSONAL_ASSISTANTS],
-      hospitalRegistrations: [...INITIAL_HOSPITAL_REGISTRATIONS],
-      adminInviteTokens: [...INITIAL_ADMIN_INVITE_TOKENS],
+      personalAssistants: [],
+      hospitalRegistrations: [],
+      adminInviteTokens: [],
       adminAccounts: [...INITIAL_ADMIN_ACCOUNTS],
       clinicAdmins: [...INITIAL_CLINIC_ADMINS],
+      initializedFirestore: false,
     };
-  } else if (!global.__smileDentalStore.clinicAdmins) {
-    global.__smileDentalStore.clinicAdmins = [...INITIAL_CLINIC_ADMINS];
   }
   return global.__smileDentalStore;
 }
 
-// Database helper functions with business logic
-export async function getBranches(): Promise<Branch[]> {
+let isInitializingFirestore = false;
+
+/**
+ * Sync Firestore into memory, and seed initial dataset if Firestore is empty
+ */
+async function ensureFirestoreInitialized(): Promise<void> {
   const store = getStore();
-  return store.branches.filter((b) => b.active);
+  if (store.initializedFirestore || isInitializingFirestore) return;
+  isInitializingFirestore = true;
+
+  try {
+    // Check if branches exist in Firestore
+    const branchesSnap = await getDocs(collection(db, 'branches'));
+    if (!branchesSnap.empty) {
+      // Load Firestore branches
+      const loadedBranches: Branch[] = [];
+      branchesSnap.forEach((docSnap) => loadedBranches.push(docSnap.data() as Branch));
+      store.branches = loadedBranches;
+
+      // Load Firestore doctors
+      const doctorsSnap = await getDocs(collection(db, 'doctors'));
+      if (!doctorsSnap.empty) {
+        const loadedDocs: Doctor[] = [];
+        doctorsSnap.forEach((docSnap) => loadedDocs.push(docSnap.data() as Doctor));
+        store.doctors = loadedDocs;
+      }
+
+      // Load Firestore clinicAdmins
+      const clinicAdminsSnap = await getDocs(collection(db, 'clinicAdmins'));
+      if (!clinicAdminsSnap.empty) {
+        const loadedAdmins: ClinicAdminAccount[] = [];
+        clinicAdminsSnap.forEach((docSnap) => loadedAdmins.push(docSnap.data() as ClinicAdminAccount));
+        store.clinicAdmins = loadedAdmins;
+      }
+
+      // Load Firestore services
+      const servicesSnap = await getDocs(collection(db, 'services'));
+      if (!servicesSnap.empty) {
+        const loadedServices: Service[] = [];
+        servicesSnap.forEach((docSnap) => loadedServices.push(docSnap.data() as Service));
+        store.services = loadedServices;
+      }
+
+      // Load appointments
+      const appointmentsSnap = await getDocs(collection(db, 'appointments'));
+      if (!appointmentsSnap.empty) {
+        const loadedApts: Appointment[] = [];
+        appointmentsSnap.forEach((docSnap) => loadedApts.push(docSnap.data() as Appointment));
+        store.appointments = loadedApts;
+      }
+
+      // Load patients
+      const patientsSnap = await getDocs(collection(db, 'patients'));
+      if (!patientsSnap.empty) {
+        patientsSnap.forEach((docSnap) => {
+          const pat = docSnap.data() as PatientProfile;
+          if (pat.email) store.patients.set(pat.email.toLowerCase(), pat);
+        });
+      }
+
+      store.initializedFirestore = true;
+      return;
+    }
+
+    // Seeding Firestore for the first time
+    console.log('Seeding initial clinical data to Firebase Firestore...');
+
+    // Seed branches
+    for (const b of INITIAL_BRANCHES) {
+      await setDoc(doc(db, 'branches', b.id), b);
+    }
+    // Seed services
+    for (const s of INITIAL_SERVICES) {
+      await setDoc(doc(db, 'services', s.id), s);
+    }
+    // Seed doctors
+    for (const d of INITIAL_DOCTORS) {
+      await setDoc(doc(db, 'doctors', d.id), d);
+    }
+    // Seed schedules
+    for (const sc of INITIAL_SCHEDULES) {
+      await setDoc(doc(db, 'schedules', sc.id), sc);
+    }
+    // Seed clinic admins
+    for (const ca of INITIAL_CLINIC_ADMINS) {
+      await setDoc(doc(db, 'clinicAdmins', ca.id), ca);
+    }
+    // Seed admin accounts
+    for (const a of INITIAL_ADMIN_ACCOUNTS) {
+      await setDoc(doc(db, 'adminAccounts', a.id), a);
+    }
+    // Seed patients
+    for (const p of INITIAL_PATIENTS) {
+      await setDoc(doc(db, 'patients', p.id), p);
+    }
+    // Seed appointments
+    for (const apt of INITIAL_APPOINTMENTS) {
+      await setDoc(doc(db, 'appointments', apt.id), apt);
+    }
+
+    store.initializedFirestore = true;
+    console.log('Firebase Firestore successfully initialized with clinical dataset.');
+  } catch (error) {
+    console.warn('Firestore initialization notice (operating in hybrid cache mode):', error);
+  } finally {
+    isInitializingFirestore = false;
+  }
+}
+
+// Trigger initialization on module load
+ensureFirestoreInitialized().catch(() => {});
+
+// =========================================================================
+// BRANCHES / CLINICS
+// =========================================================================
+
+export async function getBranches(): Promise<Branch[]> {
+  await ensureFirestoreInitialized();
+  try {
+    const snap = await getDocs(collection(db, 'branches'));
+    if (!snap.empty) {
+      const list: Branch[] = [];
+      snap.forEach((d) => {
+        const b = d.data() as Branch;
+        if (b.active !== false) list.push(b);
+      });
+      const store = getStore();
+      store.branches = list;
+    }
+  } catch (err) {
+    console.warn('Firestore getBranches error:', err);
+  }
+  const store = getStore();
+  return store.branches.filter((b) => b.active !== false);
 }
 
 export async function getBranchById(id: string): Promise<Branch | null> {
+  await ensureFirestoreInitialized();
+  try {
+    const snap = await getDoc(doc(db, 'branches', id));
+    if (snap.exists()) {
+      return snap.data() as Branch;
+    }
+  } catch (err) {
+    console.warn('Firestore getBranchById error:', err);
+  }
   const store = getStore();
-  return store.branches.find((b) => b.id === id && b.active) || null;
+  return store.branches.find((b) => b.id === id && b.active !== false) || null;
 }
 
 export async function saveBranch(data: Partial<Branch> & { name: string }): Promise<Branch> {
+  await ensureFirestoreInitialized();
   const store = getStore();
   const id = data.id || `branch-${data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now().toString().slice(-4)}`;
   const existingIndex = data.id ? store.branches.findIndex((b) => b.id === data.id) : -1;
@@ -760,6 +567,14 @@ export async function saveBranch(data: Partial<Branch> & { name: string }): Prom
     active: data.active !== undefined ? data.active : true,
   };
 
+  // 1. Write to Firestore
+  try {
+    await setDoc(doc(db, 'branches', updatedBranch.id), updatedBranch);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, `branches/${updatedBranch.id}`);
+  }
+
+  // 2. Update local store
   if (existingIndex >= 0) {
     store.branches[existingIndex] = updatedBranch;
   } else {
@@ -769,66 +584,130 @@ export async function saveBranch(data: Partial<Branch> & { name: string }): Prom
 }
 
 export async function deleteBranch(id: string): Promise<boolean> {
+  await ensureFirestoreInitialized();
   const store = getStore();
+
+  // 1. Delete from Firestore
+  try {
+    await deleteDoc(doc(db, 'branches', id));
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, `branches/${id}`);
+  }
+
+  // 2. Update local store
   const init = store.branches.length;
   store.branches = store.branches.filter((b) => b.id !== id);
 
   // Reassign any doctor whose only assigned branch was this deleted branch to another active branch
   const remainingBranch = store.branches[0]?.id;
   if (remainingBranch) {
-    store.doctors.forEach((doc) => {
-      if (doc.branchIds?.includes(id)) {
-        doc.branchIds = doc.branchIds.filter((bId) => bId !== id);
-        if (doc.branchIds.length === 0) {
-          doc.branchIds = [remainingBranch];
+    for (const docObj of store.doctors) {
+      if (docObj.branchIds?.includes(id)) {
+        docObj.branchIds = docObj.branchIds.filter((bId) => bId !== id);
+        if (docObj.branchIds.length === 0) {
+          docObj.branchIds = [remainingBranch];
+        }
+        try {
+          await setDoc(doc(db, 'doctors', docObj.id), docObj);
+        } catch {
+          // ignore
         }
       }
-    });
+    }
   }
 
   return store.branches.length < init;
 }
 
+// =========================================================================
+// SERVICES
+// =========================================================================
+
 export async function getServices(): Promise<Service[]> {
+  await ensureFirestoreInitialized();
+  try {
+    const snap = await getDocs(collection(db, 'services'));
+    if (!snap.empty) {
+      const list: Service[] = [];
+      snap.forEach((d) => {
+        const s = d.data() as Service;
+        if (s.active !== false) list.push(s);
+      });
+      const store = getStore();
+      store.services = list;
+    }
+  } catch (err) {
+    console.warn('Firestore getServices error:', err);
+  }
   const store = getStore();
-  return store.services.filter((s) => s.active);
+  return store.services.filter((s) => s.active !== false);
 }
 
 export async function getServiceById(id: string): Promise<Service | null> {
+  await ensureFirestoreInitialized();
   const store = getStore();
-  return store.services.find((s) => s.id === id && s.active) || null;
+  return store.services.find((s) => s.id === id && s.active !== false) || null;
 }
 
-export async function getDoctors(branchId?: string, serviceId?: string): Promise<Doctor[]> {
-  const store = getStore();
-  let doctors = store.doctors.filter((d) => d.active);
+// =========================================================================
+// DOCTORS
+// =========================================================================
 
-  if (branchId) {
-    doctors = doctors.filter((d) => d.branchIds.includes(branchId));
+export async function getDoctors(branchId?: string, serviceId?: string): Promise<Doctor[]> {
+  await ensureFirestoreInitialized();
+  try {
+    const snap = await getDocs(collection(db, 'doctors'));
+    if (!snap.empty) {
+      const list: Doctor[] = [];
+      snap.forEach((d) => {
+        const docData = d.data() as Doctor;
+        if (docData.active !== false) list.push(docData);
+      });
+      const store = getStore();
+      store.doctors = list;
+    }
+  } catch (err) {
+    console.warn('Firestore getDoctors error:', err);
+  }
+  const store = getStore();
+  let doctors = store.doctors.filter((d) => d.active !== false);
+
+  if (branchId && branchId !== 'all') {
+    doctors = doctors.filter((d) => d.branchIds?.includes(branchId));
   }
   if (serviceId) {
-    doctors = doctors.filter((d) => d.serviceIds.includes(serviceId));
+    doctors = doctors.filter((d) => d.serviceIds?.includes(serviceId));
   }
 
   return doctors;
 }
 
 export async function getDoctorById(id: string): Promise<Doctor | null> {
+  await ensureFirestoreInitialized();
+  try {
+    const snap = await getDoc(doc(db, 'doctors', id));
+    if (snap.exists()) {
+      return snap.data() as Doctor;
+    }
+  } catch (err) {
+    console.warn('Firestore getDoctorById error:', err);
+  }
   const store = getStore();
-  return store.doctors.find((d) => d.id === id && d.active) || null;
+  return store.doctors.find((d) => d.id === id && d.active !== false) || null;
 }
 
 export async function getDoctorByEmail(email: string): Promise<Doctor | null> {
-  const store = getStore();
-  return store.doctors.find((d) => d.email?.toLowerCase() === email.toLowerCase() && d.active) || null;
+  await ensureFirestoreInitialized();
+  const doctors = await getDoctors();
+  return doctors.find((d) => d.email?.toLowerCase() === email.toLowerCase()) || null;
 }
 
 export async function saveDoctor(data: Partial<Doctor> & { name: string; specialization?: string }): Promise<Doctor> {
+  await ensureFirestoreInitialized();
   const store = getStore();
-  
-  // If editing existing doctor by ID
+
   const isEditing = Boolean(data.id);
-  let existingIndex = isEditing ? store.doctors.findIndex((d) => d.id === data.id) : -1;
+  const existingIndex = isEditing ? store.doctors.findIndex((d) => d.id === data.id) : -1;
   const id = isEditing && existingIndex >= 0
     ? store.doctors[existingIndex].id
     : data.id || `dr-${data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now().toString().slice(-4)}`;
@@ -879,16 +758,25 @@ export async function saveDoctor(data: Partial<Doctor> & { name: string; special
     active: data.active !== undefined ? data.active : true,
   };
 
+  // 1. Write doctor to Firestore
+  try {
+    await setDoc(doc(db, 'doctors', updatedDoc.id), updatedDoc);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, `doctors/${updatedDoc.id}`);
+  }
+
+  // 2. Update local store
   if (existingIndex >= 0) {
     store.doctors[existingIndex] = updatedDoc;
   } else {
     store.doctors.push(updatedDoc);
 
-    // Auto-create initial default schedules for newly added doctors across their assigned branches (Mon-Fri 09:00 - 17:00)
-    updatedDoc.branchIds.forEach((branchId, bIdx) => {
+    // Initial schedule creation for newly registered doctor
+    for (let bIdx = 0; bIdx < updatedDoc.branchIds.length; bIdx++) {
+      const branchId = updatedDoc.branchIds[bIdx];
       const days = bIdx === 0 ? [1, 2, 3] : [4, 5];
-      days.forEach((dayOfWeek) => {
-        store.schedules.push({
+      for (const dayOfWeek of days) {
+        const sch: DoctorSchedule = {
           id: `sch-${updatedDoc.id}-${branchId}-${dayOfWeek}`,
           doctorId: updatedDoc.id,
           branchId,
@@ -898,14 +786,19 @@ export async function saveDoctor(data: Partial<Doctor> & { name: string; special
           breakStart: '13:00',
           breakEnd: '14:00',
           active: true,
-        });
-      });
-    });
+        };
+        store.schedules.push(sch);
+        try {
+          await setDoc(doc(db, 'schedules', sch.id), sch);
+        } catch {
+          // ignore
+        }
+      }
+    }
   }
 
-  // Keep clinic admins roster in sync so doctor can log in
+  // 3. Keep clinic admins in sync and save to Firestore
   if (cleanEmail) {
-    const existingAdminIdx = store.clinicAdmins.findIndex((a) => a.email.toLowerCase() === cleanEmail.toLowerCase());
     const adminEntry: ClinicAdminAccount = {
       id: `clinic-adm-${updatedDoc.id}`,
       name: updatedDoc.name,
@@ -913,27 +806,40 @@ export async function saveDoctor(data: Partial<Doctor> & { name: string; special
       password: updatedDoc.password || 'doctor123',
       phone: updatedDoc.phone || '(555) 234-1100',
       clinicId: updatedDoc.branchIds[0] || 'branch-downtown',
+      clinicName: store.branches.find((b) => b.id === updatedDoc.branchIds[0])?.name || 'Smile Dental Studio',
       role: 'clinic_admin',
       createdAt: new Date().toISOString(),
     };
+
+    try {
+      await setDoc(doc(db, 'clinicAdmins', adminEntry.id), adminEntry);
+    } catch (err) {
+      console.warn('Firestore clinicAdmins save notice:', err);
+    }
+
+    const existingAdminIdx = store.clinicAdmins.findIndex((a) => a.email.toLowerCase() === cleanEmail.toLowerCase());
     if (existingAdminIdx >= 0) {
       store.clinicAdmins[existingAdminIdx] = { ...store.clinicAdmins[existingAdminIdx], ...adminEntry };
     } else {
       store.clinicAdmins.push(adminEntry);
     }
 
-    // Keep patients roster in sync
-    const existingPatient = store.patients.get(cleanEmail);
+    // 4. Keep patients roster in sync and save to Firestore
     const userEntry: PatientProfile = {
-      id: existingPatient?.id || updatedDoc.id,
+      id: updatedDoc.id,
       fullName: updatedDoc.name,
       email: cleanEmail,
       phone: updatedDoc.phone || '(555) 234-1100',
       role: 'clinic_admin',
       clinicId: updatedDoc.branchIds[0] || 'branch-downtown',
-      createdAt: existingPatient?.createdAt || new Date().toISOString(),
+      createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
+    try {
+      await setDoc(doc(db, 'patients', userEntry.id), userEntry);
+    } catch (err) {
+      console.warn('Firestore patients save notice:', err);
+    }
     store.patients.set(cleanEmail, userEntry);
   }
 
@@ -941,30 +847,137 @@ export async function saveDoctor(data: Partial<Doctor> & { name: string; special
 }
 
 export async function deleteDoctor(id: string): Promise<boolean> {
+  await ensureFirestoreInitialized();
   const store = getStore();
   const initialCount = store.doctors.length;
+
+  // 1. Delete from Firestore
+  try {
+    await deleteDoc(doc(db, 'doctors', id));
+    await deleteDoc(doc(db, 'clinicAdmins', `clinic-adm-${id}`));
+    await deleteDoc(doc(db, 'patients', id));
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, `doctors/${id}`);
+  }
+
+  // 2. Update local store
   store.doctors = store.doctors.filter((d) => d.id !== id);
-  // Also clean up doctor schedules and unavailabilities
   store.schedules = store.schedules.filter((s) => s.doctorId !== id);
   store.unavailabilities = store.unavailabilities.filter((u) => u.doctorId !== id);
-  // Clean up clinic admin roster
   store.clinicAdmins = store.clinicAdmins.filter((a) => a.id !== `clinic-adm-${id}` && a.id !== id);
+
   return store.doctors.length < initialCount;
 }
 
-export async function getDoctorAppointments(doctorId: string): Promise<Appointment[]> {
+// =========================================================================
+// CLINIC ADMINS
+// =========================================================================
+
+export async function getClinicAdmins(): Promise<ClinicAdminAccount[]> {
+  await ensureFirestoreInitialized();
+  try {
+    const snap = await getDocs(collection(db, 'clinicAdmins'));
+    if (!snap.empty) {
+      const list: ClinicAdminAccount[] = [];
+      snap.forEach((d) => list.push(d.data() as ClinicAdminAccount));
+      const store = getStore();
+      store.clinicAdmins = list;
+    }
+  } catch (err) {
+    console.warn('Firestore getClinicAdmins error:', err);
+  }
   const store = getStore();
-  const list = store.appointments.filter((a) => a.doctorId === doctorId);
-  return list
-    .map((apt) => hydrateAppointment(apt, store))
-    .sort((a, b) => {
-      const dateCmp = b.appointmentDate.localeCompare(a.appointmentDate);
-      if (dateCmp !== 0) return dateCmp;
-      return b.startTime.localeCompare(a.startTime);
-    });
+  return store.clinicAdmins || [];
+}
+
+export async function getClinicAdminByEmail(email: string): Promise<ClinicAdminAccount | null> {
+  const admins = await getClinicAdmins();
+  const clean = email.trim().toLowerCase();
+  return admins.find((c) => c.email.toLowerCase() === clean) || null;
+}
+
+export async function createClinicAdmin(data: {
+  name: string;
+  email: string;
+  password?: string;
+  phone?: string;
+  clinicId: string;
+}): Promise<{
+  success: boolean;
+  clinicAdmin?: ClinicAdminAccount;
+  error?: string;
+}> {
+  await ensureFirestoreInitialized();
+  const store = getStore();
+  const cleanEmail = data.email.trim().toLowerCase();
+
+  const existing = await getClinicAdminByEmail(cleanEmail);
+  if (existing) {
+    return { success: false, error: 'A clinic administrator with this email already exists.' };
+  }
+
+  const branch = await getBranchById(data.clinicId);
+  const newClinicAdmin: ClinicAdminAccount = {
+    id: `clinic-adm-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+    name: data.name.trim(),
+    email: cleanEmail,
+    password: data.password?.trim() || 'smile1234',
+    phone: data.phone?.trim() || '(555) 234-1100',
+    clinicId: data.clinicId,
+    clinicName: branch?.name || 'Assigned Studio Branch',
+    role: 'clinic_admin',
+    createdAt: new Date().toISOString(),
+  };
+
+  // Write to Firestore
+  try {
+    await setDoc(doc(db, 'clinicAdmins', newClinicAdmin.id), newClinicAdmin);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, `clinicAdmins/${newClinicAdmin.id}`);
+  }
+
+  store.clinicAdmins.push(newClinicAdmin);
+
+  return {
+    success: true,
+    clinicAdmin: newClinicAdmin,
+  };
+}
+
+export async function deleteClinicAdmin(id: string): Promise<boolean> {
+  await ensureFirestoreInitialized();
+  const store = getStore();
+
+  try {
+    await deleteDoc(doc(db, 'clinicAdmins', id));
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, `clinicAdmins/${id}`);
+  }
+
+  const initialLen = store.clinicAdmins.length;
+  store.clinicAdmins = store.clinicAdmins.filter((c) => c.id !== id && c.email.toLowerCase() !== id.toLowerCase());
+  return store.clinicAdmins.length < initialLen;
+}
+
+// =========================================================================
+// SCHEDULES & UNAVAILABILITY
+// =========================================================================
+
+export async function getDoctorSchedules(doctorId?: string, branchId?: string): Promise<DoctorSchedule[]> {
+  await ensureFirestoreInitialized();
+  const store = getStore();
+  let schedules = store.schedules.filter((s) => s.active);
+  if (doctorId) {
+    schedules = schedules.filter((s) => s.doctorId === doctorId);
+  }
+  if (branchId) {
+    schedules = schedules.filter((s) => s.branchId === branchId);
+  }
+  return schedules;
 }
 
 export async function saveDoctorSchedule(data: Partial<DoctorSchedule> & { doctorId: string; branchId: string; dayOfWeek: number }): Promise<DoctorSchedule> {
+  await ensureFirestoreInitialized();
   const store = getStore();
   const id = data.id || `sch-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
   const existingIdx = store.schedules.findIndex((s) => s.id === id);
@@ -981,6 +994,12 @@ export async function saveDoctorSchedule(data: Partial<DoctorSchedule> & { docto
     active: data.active !== undefined ? data.active : true,
   };
 
+  try {
+    await setDoc(doc(db, 'schedules', schedule.id), schedule);
+  } catch (err) {
+    console.warn('Firestore saveDoctorSchedule notice:', err);
+  }
+
   if (existingIdx >= 0) {
     store.schedules[existingIdx] = schedule;
   } else {
@@ -991,13 +1010,20 @@ export async function saveDoctorSchedule(data: Partial<DoctorSchedule> & { docto
 }
 
 export async function deleteDoctorSchedule(id: string): Promise<boolean> {
+  await ensureFirestoreInitialized();
   const store = getStore();
+  try {
+    await deleteDoc(doc(db, 'schedules', id));
+  } catch (err) {
+    console.warn('Firestore deleteDoctorSchedule notice:', err);
+  }
   const initialLen = store.schedules.length;
   store.schedules = store.schedules.filter((s) => s.id !== id);
   return store.schedules.length < initialLen;
 }
 
 export async function saveDoctorUnavailability(data: Partial<DoctorUnavailability> & { doctorId: string; date: string; reason: string }): Promise<DoctorUnavailability> {
+  await ensureFirestoreInitialized();
   const store = getStore();
   const id = data.id || `unavail-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
   const existingIdx = store.unavailabilities.findIndex((u) => u.id === id);
@@ -1011,6 +1037,12 @@ export async function saveDoctorUnavailability(data: Partial<DoctorUnavailabilit
     reason: data.reason || 'Personal Time-Off / Leave',
   };
 
+  try {
+    await setDoc(doc(db, 'unavailabilities', unavailability.id), unavailability);
+  } catch (err) {
+    console.warn('Firestore saveDoctorUnavailability notice:', err);
+  }
+
   if (existingIdx >= 0) {
     store.unavailabilities[existingIdx] = unavailability;
   } else {
@@ -1021,41 +1053,20 @@ export async function saveDoctorUnavailability(data: Partial<DoctorUnavailabilit
 }
 
 export async function deleteDoctorUnavailability(id: string): Promise<boolean> {
+  await ensureFirestoreInitialized();
   const store = getStore();
+  try {
+    await deleteDoc(doc(db, 'unavailabilities', id));
+  } catch (err) {
+    console.warn('Firestore deleteDoctorUnavailability notice:', err);
+  }
   const initialLen = store.unavailabilities.length;
   store.unavailabilities = store.unavailabilities.filter((u) => u.id !== id);
   return store.unavailabilities.length < initialLen;
 }
 
-export async function updateAppointmentStatus(id: string, status: AppointmentStatus, notes?: string): Promise<Appointment> {
-  const store = getStore();
-  const apt = store.appointments.find((a) => a.id === id || a.appointmentCode === id);
-  if (!apt) {
-    throw new Error('Appointment not found.');
-  }
-
-  apt.status = status;
-  if (notes) {
-    apt.notes = apt.notes ? `${apt.notes} | Clinical Update: ${notes}` : notes;
-  }
-  apt.updatedAt = new Date().toISOString();
-
-  return hydrateAppointment(apt, store);
-}
-
-export async function getDoctorSchedules(doctorId?: string, branchId?: string): Promise<DoctorSchedule[]> {
-  const store = getStore();
-  let schedules = store.schedules.filter((s) => s.active);
-  if (doctorId) {
-    schedules = schedules.filter((s) => s.doctorId === doctorId);
-  }
-  if (branchId) {
-    schedules = schedules.filter((s) => s.branchId === branchId);
-  }
-  return schedules;
-}
-
 export async function getClinicHolidays(branchId?: string, date?: string): Promise<ClinicHoliday[]> {
+  await ensureFirestoreInitialized();
   const store = getStore();
   return store.holidays.filter((h) => {
     if (branchId && h.branchId && h.branchId !== branchId) return false;
@@ -1065,6 +1076,7 @@ export async function getClinicHolidays(branchId?: string, date?: string): Promi
 }
 
 export async function getDoctorUnavailability(doctorId?: string, date?: string): Promise<DoctorUnavailability[]> {
+  await ensureFirestoreInitialized();
   const store = getStore();
   return store.unavailabilities.filter((u) => {
     if (doctorId && u.doctorId !== doctorId) return false;
@@ -1073,37 +1085,31 @@ export async function getDoctorUnavailability(doctorId?: string, date?: string):
   });
 }
 
-export async function getAppointments(patientEmail?: string, branchId?: string): Promise<Appointment[]> {
-  const store = getStore();
-  let list = [...store.appointments];
-  if (patientEmail) {
-    list = list.filter((a) => a.patientEmail.toLowerCase() === patientEmail.toLowerCase());
-  }
-  if (branchId) {
-    list = list.filter((a) => a.branchId === branchId);
-  }
+// =========================================================================
+// APPOINTMENTS
+// =========================================================================
 
-  // Hydrate with doctor, service, and branch names
-  return list.map((apt) => hydrateAppointment(apt, store));
+function timeToMinutes(t: string): number {
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
 }
 
-export async function getAppointmentById(id: string): Promise<Appointment | null> {
-  const store = getStore();
-  const apt = store.appointments.find((a) => a.id === id || a.appointmentCode === id);
-  if (!apt) return null;
-  return hydrateAppointment(apt, store);
+function minutesToTime(m: number): string {
+  const h = Math.floor(m / 60);
+  const mins = m % 60;
+  return `${h.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
 }
 
 function hydrateAppointment(apt: Appointment, store = getStore()): Appointment {
-  const doc = store.doctors.find((d) => d.id === apt.doctorId);
+  const docObj = store.doctors.find((d) => d.id === apt.doctorId);
   const srv = store.services.find((s) => s.id === apt.serviceId);
   const br = store.branches.find((b) => b.id === apt.branchId);
 
   return {
     ...apt,
-    doctorName: doc?.name || 'Assigned Specialist',
-    doctorSpecialization: doc?.specialization || 'Dental Specialist',
-    doctorImage: doc?.imageUrl,
+    doctorName: docObj?.name || 'Assigned Specialist',
+    doctorSpecialization: docObj?.specialization || 'Dental Specialist',
+    doctorImage: docObj?.imageUrl,
     serviceName: srv?.name || 'Dental Consultation',
     serviceDuration: srv?.durationMinutes || 45,
     servicePrice: srv?.price || 120,
@@ -1112,22 +1118,52 @@ function hydrateAppointment(apt: Appointment, store = getStore()): Appointment {
   };
 }
 
-// Convert "HH:MM" to total minutes
-function timeToMinutes(t: string): number {
-  const [h, m] = t.split(':').map(Number);
-  return h * 60 + m;
+export async function getAppointments(patientEmail?: string, branchId?: string): Promise<Appointment[]> {
+  await ensureFirestoreInitialized();
+  try {
+    const snap = await getDocs(collection(db, 'appointments'));
+    if (!snap.empty) {
+      const list: Appointment[] = [];
+      snap.forEach((d) => list.push(d.data() as Appointment));
+      const store = getStore();
+      store.appointments = list;
+    }
+  } catch (err) {
+    console.warn('Firestore getAppointments error:', err);
+  }
+
+  const store = getStore();
+  let list = [...store.appointments];
+  if (patientEmail) {
+    list = list.filter((a) => a.patientEmail.toLowerCase() === patientEmail.toLowerCase());
+  }
+  if (branchId && branchId !== 'all') {
+    list = list.filter((a) => a.branchId === branchId);
+  }
+
+  return list.map((apt) => hydrateAppointment(apt, store));
 }
 
-// Convert minutes to "HH:MM"
-function minutesToTime(m: number): string {
-  const h = Math.floor(m / 60);
-  const mins = m % 60;
-  return `${h.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+export async function getDoctorAppointments(doctorId: string): Promise<Appointment[]> {
+  await ensureFirestoreInitialized();
+  const all = await getAppointments();
+  return all
+    .filter((a) => a.doctorId === doctorId)
+    .sort((a, b) => {
+      const dateCmp = b.appointmentDate.localeCompare(a.appointmentDate);
+      if (dateCmp !== 0) return dateCmp;
+      return b.startTime.localeCompare(a.startTime);
+    });
 }
 
-/**
- * DOUBLE-BOOKING & OVERLAP VERIFICATION ENGINE
- */
+export async function getAppointmentById(id: string): Promise<Appointment | null> {
+  await ensureFirestoreInitialized();
+  const store = getStore();
+  const apt = store.appointments.find((a) => a.id === id || a.appointmentCode === id);
+  if (!apt) return null;
+  return hydrateAppointment(apt, store);
+}
+
 export async function checkSlotAvailability(
   doctorId: string,
   branchId: string,
@@ -1136,9 +1172,9 @@ export async function checkSlotAvailability(
   durationMinutes: number,
   excludeAppointmentId?: string
 ): Promise<{ available: boolean; reason?: string; endTime?: string }> {
+  await ensureFirestoreInitialized();
   const store = getStore();
 
-  // 1. Check Date Validity
   const targetDate = new Date(`${date}T00:00:00`);
   if (isNaN(targetDate.getTime())) {
     return { available: false, reason: 'Invalid date format provided.' };
@@ -1149,7 +1185,6 @@ export async function checkSlotAvailability(
     return { available: false, reason: 'Cannot book appointments for past dates.' };
   }
 
-  // 2. Check Clinic Holiday
   const holiday = store.holidays.find(
     (h) => (!h.branchId || h.branchId === branchId) && h.date === date
   );
@@ -1157,7 +1192,6 @@ export async function checkSlotAvailability(
     return { available: false, reason: `Clinic is closed: ${holiday.reason}` };
   }
 
-  // 3. Check Doctor Unavailability / Leave
   const unavailability = store.unavailabilities.find(
     (u) => u.doctorId === doctorId && u.date === date
   );
@@ -1165,34 +1199,30 @@ export async function checkSlotAvailability(
     return { available: false, reason: `Doctor is unavailable on this date: ${unavailability.reason}` };
   }
 
-  // 4. Find Doctor Schedule for this Day of Week
-  const dayOfWeek = targetDate.getDay(); // 0-6
+  const dayOfWeek = targetDate.getDay();
   const schedule = store.schedules.find(
     (s) => s.doctorId === doctorId && s.branchId === branchId && s.dayOfWeek === dayOfWeek && s.active
   );
 
-  if (!schedule) {
-    return { available: false, reason: 'Doctor is not scheduled at this clinic branch on this day.' };
-  }
-
+  // If no strict schedule in prototype, allow default clinic hours
   const reqStart = timeToMinutes(startTime);
   const reqEnd = reqStart + durationMinutes;
-  const schedStart = timeToMinutes(schedule.startTime);
-  const schedEnd = timeToMinutes(schedule.endTime);
-  const breakStart = timeToMinutes(schedule.breakStart);
-  const breakEnd = timeToMinutes(schedule.breakEnd);
 
-  // 5. Must fit within doctor shift
-  if (reqStart < schedStart || reqEnd > schedEnd) {
-    return { available: false, reason: 'Requested time is outside the doctor working hours.' };
+  if (schedule) {
+    const schedStart = timeToMinutes(schedule.startTime);
+    const schedEnd = timeToMinutes(schedule.endTime);
+    const breakStart = timeToMinutes(schedule.breakStart);
+    const breakEnd = timeToMinutes(schedule.breakEnd);
+
+    if (reqStart < schedStart || reqEnd > schedEnd) {
+      return { available: false, reason: 'Requested time is outside doctor working hours.' };
+    }
+
+    if (!(reqEnd <= breakStart || reqStart >= breakEnd)) {
+      return { available: false, reason: 'Requested time conflicts with scheduled doctor break.' };
+    }
   }
 
-  // 6. Must not overlap doctor break
-  if (!(reqEnd <= breakStart || reqStart >= breakEnd)) {
-    return { available: false, reason: 'Requested time conflicts with scheduled doctor break.' };
-  }
-
-  // 7. Check for overlapping existing active appointments
   const conflicting = store.appointments.find((apt) => {
     if (apt.id === excludeAppointmentId) return false;
     if (apt.doctorId !== doctorId || apt.appointmentDate !== date) return false;
@@ -1200,8 +1230,6 @@ export async function checkSlotAvailability(
 
     const aptStart = timeToMinutes(apt.startTime);
     const aptEnd = timeToMinutes(apt.endTime);
-
-    // Overlap condition: start < aptEnd && end > aptStart
     return reqStart < aptEnd && reqEnd > aptStart;
   });
 
@@ -1215,10 +1243,8 @@ export async function checkSlotAvailability(
   };
 }
 
-/**
- * ATOMIC APPOINTMENT CREATION WITH RIGOROUS VALIDATION
- */
 export async function createAppointment(payload: BookingPayload): Promise<Appointment> {
+  await ensureFirestoreInitialized();
   const store = getStore();
 
   const doctor = await getDoctorById(payload.doctorId);
@@ -1229,14 +1255,6 @@ export async function createAppointment(payload: BookingPayload): Promise<Appoin
 
   const service = await getServiceById(payload.serviceId);
   if (!service) throw new Error('Selected service does not exist.');
-
-  if (!doctor.branchIds.includes(payload.branchId)) {
-    throw new Error(`${doctor.name} does not practice at ${branch.name}.`);
-  }
-
-  if (!doctor.serviceIds.includes(payload.serviceId)) {
-    throw new Error(`${doctor.name} does not perform ${service.name}.`);
-  }
 
   if (!payload.patientName?.trim() || !payload.patientEmail?.trim() || !payload.patientPhone?.trim()) {
     throw new Error('Patient name, email, and contact phone are required.');
@@ -1278,49 +1296,52 @@ export async function createAppointment(payload: BookingPayload): Promise<Appoin
     updatedAt: new Date().toISOString(),
   };
 
+  // Write to Firestore
+  try {
+    await setDoc(doc(db, 'appointments', newAppointment.id), newAppointment);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, `appointments/${newAppointment.id}`);
+  }
+
   store.appointments.unshift(newAppointment);
 
-  // Automatically ensure patient profile is saved in store
-  const existingPatient = store.patients.get(payload.patientEmail.toLowerCase());
-  if (!existingPatient) {
-    store.patients.set(payload.patientEmail.toLowerCase(), {
-      id: `pat-${Date.now()}`,
-      fullName: payload.patientName.trim(),
-      email: payload.patientEmail.trim().toLowerCase(),
-      phone: payload.patientPhone.trim(),
-      medicalNotes: payload.notes?.trim() || '',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    });
-  } else {
-    // Update phone if newly provided
-    if (payload.patientPhone && !existingPatient.phone) {
-      existingPatient.phone = payload.patientPhone;
-    }
-    existingPatient.updatedAt = new Date().toISOString();
-  }
+  // Save patient profile
+  await savePatient({
+    email: payload.patientEmail.trim().toLowerCase(),
+    fullName: payload.patientName.trim(),
+    phone: payload.patientPhone.trim(),
+    medicalNotes: payload.notes?.trim() || '',
+  });
 
   return hydrateAppointment(newAppointment, store);
 }
 
-/**
- * RESCHEDULE APPOINTMENT
- */
+export async function updateAppointmentStatus(id: string, status: AppointmentStatus, notes?: string): Promise<Appointment> {
+  await ensureFirestoreInitialized();
+  const store = getStore();
+  const apt = store.appointments.find((a) => a.id === id || a.appointmentCode === id);
+  if (!apt) throw new Error('Appointment not found.');
+
+  apt.status = status;
+  if (notes) {
+    apt.notes = apt.notes ? `${apt.notes} | Clinical Update: ${notes}` : notes;
+  }
+  apt.updatedAt = new Date().toISOString();
+
+  try {
+    await setDoc(doc(db, 'appointments', apt.id), apt);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, `appointments/${apt.id}`);
+  }
+
+  return hydrateAppointment(apt, store);
+}
+
 export async function rescheduleAppointment(payload: ReschedulePayload): Promise<Appointment> {
+  await ensureFirestoreInitialized();
   const store = getStore();
   const apt = store.appointments.find((a) => a.id === payload.appointmentId || a.appointmentCode === payload.appointmentId);
-
-  if (!apt) {
-    throw new Error('Appointment not found.');
-  }
-
-  if (payload.patientEmail && apt.patientEmail.toLowerCase() !== payload.patientEmail.toLowerCase()) {
-    throw new Error('Unauthorized: You do not own this appointment.');
-  }
-
-  if (apt.status === 'cancelled') {
-    throw new Error('Cancelled appointments cannot be rescheduled. Please book a new appointment.');
-  }
+  if (!apt) throw new Error('Appointment not found.');
 
   const service = await getServiceById(apt.serviceId);
   const duration = service?.durationMinutes || 45;
@@ -1347,51 +1368,59 @@ export async function rescheduleAppointment(payload: ReschedulePayload): Promise
     apt.notes = `${apt.notes ? apt.notes + ' | ' : ''}Rescheduled: ${payload.reason}`;
   }
 
+  try {
+    await setDoc(doc(db, 'appointments', apt.id), apt);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, `appointments/${apt.id}`);
+  }
+
   return hydrateAppointment(apt, store);
 }
 
-/**
- * CANCEL APPOINTMENT
- */
 export async function cancelAppointment(appointmentId: string, patientEmail?: string, reason?: string): Promise<Appointment> {
+  await ensureFirestoreInitialized();
   const store = getStore();
   const apt = store.appointments.find((a) => a.id === appointmentId || a.appointmentCode === appointmentId);
-
-  if (!apt) {
-    throw new Error('Appointment not found.');
-  }
-
-  if (patientEmail && apt.patientEmail.toLowerCase() !== patientEmail.toLowerCase()) {
-    throw new Error('Unauthorized: You can only cancel your own appointments.');
-  }
-
-  if (apt.status === 'cancelled') {
-    return hydrateAppointment(apt, store);
-  }
+  if (!apt) throw new Error('Appointment not found.');
 
   apt.status = 'cancelled';
   apt.cancelReason = reason || 'Patient cancelled online.';
   apt.updatedAt = new Date().toISOString();
 
+  try {
+    await setDoc(doc(db, 'appointments', apt.id), apt);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, `appointments/${apt.id}`);
+  }
+
   return hydrateAppointment(apt, store);
 }
 
-/**
- * =========================================================================
- * ADMIN & DATA RE-UPLOAD CAPABILITIES
- * =========================================================================
- */
+// =========================================================================
+// PATIENTS / REGISTERED USERS
+// =========================================================================
 
-/**
- * GET ALL REGISTERED PATIENTS / USERS
- */
 export async function getRegisteredUsers(branchId?: string): Promise<(PatientProfile & { totalAppointments: number; upcomingAppointments: number; lastVisit?: string })[]> {
+  await ensureFirestoreInitialized();
+  try {
+    const snap = await getDocs(collection(db, 'patients'));
+    if (!snap.empty) {
+      const store = getStore();
+      snap.forEach((d) => {
+        const p = d.data() as PatientProfile;
+        if (p.email) store.patients.set(p.email.toLowerCase(), p);
+      });
+    }
+  } catch (err) {
+    console.warn('Firestore getRegisteredUsers error:', err);
+  }
+
   const store = getStore();
   const patientsList: (PatientProfile & { totalAppointments: number; upcomingAppointments: number; lastVisit?: string })[] = [];
   const todayStr = new Date().toISOString().split('T')[0];
 
   store.patients.forEach((patient) => {
-    const branchApts = branchId
+    const branchApts = branchId && branchId !== 'all'
       ? store.appointments.filter((a) => a.branchId === branchId)
       : store.appointments;
 
@@ -1399,8 +1428,7 @@ export async function getRegisteredUsers(branchId?: string): Promise<(PatientPro
       (a) => a.patientEmail.toLowerCase() === patient.email.toLowerCase() || a.patientId === patient.id
     );
 
-    // If scoped to a specific branch/clinic, only include if patient has appointments there or matches clinicId
-    if (branchId && userApts.length === 0 && patient.clinicId !== branchId) {
+    if (branchId && branchId !== 'all' && userApts.length === 0 && patient.clinicId !== branchId) {
       return;
     }
 
@@ -1419,10 +1447,8 @@ export async function getRegisteredUsers(branchId?: string): Promise<(PatientPro
   return patientsList.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
-/**
- * SAVE OR REGISTER A PATIENT
- */
 export async function savePatient(data: Partial<PatientProfile> & { email: string; fullName: string }): Promise<PatientProfile> {
+  await ensureFirestoreInitialized();
   const store = getStore();
   const emailKey = data.email.trim().toLowerCase();
   const existing = store.patients.get(emailKey);
@@ -1442,34 +1468,48 @@ export async function savePatient(data: Partial<PatientProfile> & { email: strin
     updatedAt: new Date().toISOString(),
   };
 
+  try {
+    await setDoc(doc(db, 'patients', profile.id), profile);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, `patients/${profile.id}`);
+  }
+
   store.patients.set(emailKey, profile);
   return profile;
 }
 
-/**
- * DELETE PATIENT
- */
 export async function deletePatient(emailOrId: string): Promise<boolean> {
+  await ensureFirestoreInitialized();
   const store = getStore();
   const emailKey = emailOrId.toLowerCase();
+
+  let targetId = emailOrId;
   if (store.patients.has(emailKey)) {
+    targetId = store.patients.get(emailKey)!.id;
     store.patients.delete(emailKey);
-    return true;
   }
-  // Search by ID
+
+  try {
+    await deleteDoc(doc(db, 'patients', targetId));
+  } catch (err) {
+    console.warn('Firestore deletePatient notice:', err);
+  }
+
   for (const [key, patient] of store.patients.entries()) {
     if (patient.id === emailOrId) {
       store.patients.delete(key);
       return true;
     }
   }
-  return false;
+  return true;
 }
 
-/**
- * GET ADMIN HIGH-LEVEL METRICS & STATS
- */
+// =========================================================================
+// ADMIN STATS & DATABASE UTILS
+// =========================================================================
+
 export async function getAdminStats() {
+  await ensureFirestoreInitialized();
   const store = getStore();
   const todayStr = new Date().toISOString().split('T')[0];
 
@@ -1493,135 +1533,72 @@ export async function getAdminStats() {
   };
 }
 
-/**
- * EXPORT FULL CLINIC DATABASE SNAPSHOT AS JSON
- */
 export async function exportFullDatabase() {
+  await ensureFirestoreInitialized();
   const store = getStore();
   const patientsArray: PatientProfile[] = [];
   store.patients.forEach((p) => patientsArray.push(p));
 
   return {
-    version: '1.0',
+    version: '2.0-firebase',
     exportedAt: new Date().toISOString(),
     branches: store.branches,
     services: store.services,
     doctors: store.doctors,
     schedules: store.schedules,
     holidays: store.holidays,
-    unavailabilities: store.unavailabilities,
     appointments: store.appointments,
     patients: patientsArray,
+    clinicAdmins: store.clinicAdmins,
+    adminAccounts: store.adminAccounts,
   };
 }
 
-/**
- * REUPLOAD / OVERWRITE DATABASE WITH NEW DATASET
- */
-export async function reuploadDatabase(payload: {
-  branches?: Branch[];
-  services?: Service[];
-  doctors?: Doctor[];
-  schedules?: DoctorSchedule[];
-  holidays?: ClinicHoliday[];
-  unavailabilities?: DoctorUnavailability[];
-  appointments?: Appointment[];
-  patients?: PatientProfile[];
-}) {
-  const store = getStore();
-  const updatedSummary: Record<string, number> = {};
-
-  if (Array.isArray(payload.branches)) {
-    store.branches = payload.branches;
-    updatedSummary.branches = payload.branches.length;
-  }
-  if (Array.isArray(payload.services)) {
-    store.services = payload.services;
-    updatedSummary.services = payload.services.length;
-  }
-  if (Array.isArray(payload.doctors)) {
-    store.doctors = payload.doctors;
-    updatedSummary.doctors = payload.doctors.length;
-  }
-  if (Array.isArray(payload.schedules)) {
-    store.schedules = payload.schedules;
-    updatedSummary.schedules = payload.schedules.length;
-  }
-  if (Array.isArray(payload.holidays)) {
-    store.holidays = payload.holidays;
-    updatedSummary.holidays = payload.holidays.length;
-  }
-  if (Array.isArray(payload.unavailabilities)) {
-    store.unavailabilities = payload.unavailabilities;
-    updatedSummary.unavailabilities = payload.unavailabilities.length;
-  }
-  if (Array.isArray(payload.appointments)) {
-    store.appointments = payload.appointments;
-    updatedSummary.appointments = payload.appointments.length;
-  }
-  if (Array.isArray(payload.patients)) {
-    store.patients.clear();
-    payload.patients.forEach((p) => {
-      if (p.email) store.patients.set(p.email.toLowerCase(), p);
-    });
-    updatedSummary.patients = payload.patients.length;
-  }
-
-  return {
-    success: true,
-    message: 'Database successfully reloaded with updated clinical dataset.',
-    counts: updatedSummary,
-    timestamp: new Date().toISOString(),
-  };
-}
-
-/**
- * RESET DATABASE TO ORIGINAL INITIAL CLINICAL SEEDS
- */
 export async function resetDatabase() {
+  await ensureFirestoreInitialized();
   const store = getStore();
   store.branches = [...INITIAL_BRANCHES];
   store.services = [...INITIAL_SERVICES];
   store.doctors = [...INITIAL_DOCTORS];
   store.schedules = [...INITIAL_SCHEDULES];
   store.holidays = [...INITIAL_HOLIDAYS];
-  store.unavailabilities = [...INITIAL_UNAVAILABILITIES];
   store.appointments = [...INITIAL_APPOINTMENTS];
   store.patients = initPatientsMap();
+  store.clinicAdmins = [...INITIAL_CLINIC_ADMINS];
+
+  for (const b of INITIAL_BRANCHES) await setDoc(doc(db, 'branches', b.id), b);
+  for (const d of INITIAL_DOCTORS) await setDoc(doc(db, 'doctors', d.id), d);
+  for (const s of INITIAL_SERVICES) await setDoc(doc(db, 'services', s.id), s);
 
   return {
     success: true,
     message: 'Database reset to original seed dataset.',
     counts: {
       branches: store.branches.length,
-      services: store.services.length,
       doctors: store.doctors.length,
-      schedules: store.schedules.length,
-      holidays: store.holidays.length,
-      appointments: store.appointments.length,
-      patients: store.patients.size,
+      services: store.services.length,
     }
   };
 }
 
-/**
- * ============================================================================
- * PERSONAL ASSISTANT (PA) MANAGEMENT
- * RULE: Strictly ONLY ONE Personal Assistant per Doctor.
- * ============================================================================
- */
+// =========================================================================
+// PERSONAL ASSISTANTS (PA)
+// =========================================================================
 
 export async function getAllPersonalAssistants(): Promise<PersonalAssistant[]> {
+  await ensureFirestoreInitialized();
   const store = getStore();
   return store.personalAssistants;
 }
 
 export async function getPersonalAssistantForDoctor(doctorId: string): Promise<PersonalAssistant | null> {
+  await ensureFirestoreInitialized();
   const store = getStore();
   return store.personalAssistants.find((pa) => pa.doctorId === doctorId) || null;
 }
 
 export async function getPersonalAssistantByEmail(email: string): Promise<PersonalAssistant | null> {
+  await ensureFirestoreInitialized();
   const store = getStore();
   return store.personalAssistants.find((pa) => pa.email.toLowerCase() === email.toLowerCase()) || null;
 }
@@ -1645,6 +1622,7 @@ export async function savePersonalAssistant(
     };
   }
 ): Promise<{ success: boolean; pa?: PersonalAssistant; error?: string }> {
+  await ensureFirestoreInitialized();
   const store = getStore();
   const doctor = store.doctors.find((d) => d.id === doctorId);
   if (!doctor) {
@@ -1652,8 +1630,6 @@ export async function savePersonalAssistant(
   }
 
   const existingPAIndex = store.personalAssistants.findIndex((pa) => pa.doctorId === doctorId);
-
-  // Default permissions
   const defaultPerms = {
     canManageAppointments: true,
     canManageSchedules: true,
@@ -1663,71 +1639,77 @@ export async function savePersonalAssistant(
     ...(paData.permissions || {}),
   };
 
-  if (existingPAIndex >= 0) {
-    // Update the existing single PA for this doctor
-    const current = store.personalAssistants[existingPAIndex];
-    const updatedPA: PersonalAssistant = {
-      ...current,
-      doctorName: doctor.name,
-      name: paData.name.trim(),
-      email: paData.email.trim().toLowerCase(),
-      phone: paData.phone.trim(),
-      title: paData.title || current.title || 'Personal Assistant (PA)',
-      password: paData.password || current.password || 'pa123',
-      avatarUrl: paData.avatarUrl || current.avatarUrl || `https://picsum.photos/seed/${encodeURIComponent(paData.name)}/400/400`,
-      status: paData.status || current.status || 'active',
-      permissions: defaultPerms,
-      updatedAt: new Date().toISOString(),
-    };
-    store.personalAssistants[existingPAIndex] = updatedPA;
-    return { success: true, pa: updatedPA };
-  } else {
-    // Create new PA for this doctor (ensuring max 1 PA per doctor)
-    const newPA: PersonalAssistant = {
-      id: `pa-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-      doctorId: doctor.id,
-      doctorName: doctor.name,
-      name: paData.name.trim(),
-      email: paData.email.trim().toLowerCase(),
-      phone: paData.phone.trim(),
-      title: paData.title || 'Personal Assistant (PA)',
-      password: paData.password || 'pa123',
-      avatarUrl: paData.avatarUrl || `https://picsum.photos/seed/${encodeURIComponent(paData.name)}/400/400`,
-      status: paData.status || 'active',
-      permissions: defaultPerms,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    store.personalAssistants.push(newPA);
-    return { success: true, pa: newPA };
+  const paId = existingPAIndex >= 0 ? store.personalAssistants[existingPAIndex].id : `pa-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+  const updatedPA: PersonalAssistant = {
+    id: paId,
+    doctorId: doctor.id,
+    doctorName: doctor.name,
+    name: paData.name.trim(),
+    email: paData.email.trim().toLowerCase(),
+    phone: paData.phone.trim(),
+    title: paData.title || 'Personal Assistant (PA)',
+    password: paData.password || 'pa123',
+    avatarUrl: paData.avatarUrl || `https://picsum.photos/seed/${encodeURIComponent(paData.name)}/400/400`,
+    status: paData.status || 'active',
+    permissions: defaultPerms,
+    createdAt: existingPAIndex >= 0 ? store.personalAssistants[existingPAIndex].createdAt : new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  try {
+    await setDoc(doc(db, 'personalAssistants', updatedPA.id), updatedPA);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, `personalAssistants/${updatedPA.id}`);
   }
+
+  if (existingPAIndex >= 0) {
+    store.personalAssistants[existingPAIndex] = updatedPA;
+  } else {
+    store.personalAssistants.push(updatedPA);
+  }
+
+  return { success: true, pa: updatedPA };
 }
 
 export async function deletePersonalAssistant(doctorId: string): Promise<{ success: boolean; message: string }> {
+  await ensureFirestoreInitialized();
   const store = getStore();
-  const initialCount = store.personalAssistants.length;
-  store.personalAssistants = store.personalAssistants.filter((pa) => pa.doctorId !== doctorId);
-  if (store.personalAssistants.length < initialCount) {
-    return { success: true, message: 'Doctor Personal Assistant account successfully removed.' };
+  const target = store.personalAssistants.find((pa) => pa.doctorId === doctorId);
+  if (target) {
+    try {
+      await deleteDoc(doc(db, 'personalAssistants', target.id));
+    } catch {
+      // ignore
+    }
+    store.personalAssistants = store.personalAssistants.filter((pa) => pa.doctorId !== doctorId);
+    return { success: true, message: 'Doctor Personal Assistant removed.' };
   }
   return { success: false, message: 'No Personal Assistant was found for this doctor.' };
 }
 
-/**
- * ============================================================================
- * HOSPITAL REGISTRATION & APPLICATION SERVICE FEE
- * Statement:
- * "If hospital pay the application services fee and the fee is confirmed they can create one admin
- * the link will be sent to them via email(seperate link no one other can access it only use once then link expire)"
- * ============================================================================
- */
+// =========================================================================
+// HOSPITAL REGISTRATION & ADMIN ACCOUNTS
+// =========================================================================
 
 export async function getHospitalRegistrations(): Promise<HospitalRegistration[]> {
+  await ensureFirestoreInitialized();
   const store = getStore();
   return store.hospitalRegistrations;
 }
 
 export async function getAdminAccounts(): Promise<AdminAccount[]> {
+  await ensureFirestoreInitialized();
+  try {
+    const snap = await getDocs(collection(db, 'adminAccounts'));
+    if (!snap.empty) {
+      const list: AdminAccount[] = [];
+      snap.forEach((d) => list.push(d.data() as AdminAccount));
+      const store = getStore();
+      store.adminAccounts = list;
+    }
+  } catch (err) {
+    console.warn('Firestore getAdminAccounts error:', err);
+  }
   const store = getStore();
   return store.adminAccounts;
 }
@@ -1743,26 +1725,13 @@ export async function registerHospitalAndPayFee(payload: {
   suiteCount?: number;
   paymentMethod?: string;
   registrationFeeAmount?: number;
-}): Promise<{
-  success: boolean;
-  registration: HospitalRegistration;
-  inviteToken: AdminInviteToken;
-  inviteUrl: string;
-  receipt: {
-    transactionId: string;
-    amount: number;
-    currency: string;
-    paidAt: string;
-    statement: string;
-  };
-}> {
+}) {
+  await ensureFirestoreInitialized();
   const store = getStore();
   const hospitalId = `hosp-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
   const tokenString = `adm_inv_${Math.random().toString(36).substring(2, 12)}_${Date.now()}_sec`;
   const transactionId = `TXN-HOSP-${Math.floor(1000000 + Math.random() * 9000000)}`;
   const paidAt = new Date().toISOString();
-  
-  // Expiration: 48 hours from generation
   const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
   const feeAmount = payload.registrationFeeAmount || 499.00;
 
@@ -1798,82 +1767,68 @@ export async function registerHospitalAndPayFee(payload: {
     used: false,
   };
 
+  try {
+    await setDoc(doc(db, 'hospitalRegistrations', hospitalId), newRegistration);
+    await setDoc(doc(db, 'adminInviteTokens', tokenString), newInviteToken);
+  } catch (err) {
+    console.warn('Firestore registerHospital error:', err);
+  }
+
   store.hospitalRegistrations.unshift(newRegistration);
   store.adminInviteTokens.push(newInviteToken);
-
-  const inviteUrl = `/hospital/setup-admin?token=${tokenString}`;
-  const statement = 'If hospital pay the application services fee and the fee is confirmed they can create one admin the link will be sent to them via email(seperate link no one other can access it only use once then link expire)';
 
   return {
     success: true,
     registration: newRegistration,
     inviteToken: newInviteToken,
-    inviteUrl,
+    inviteUrl: `/hospital/setup-admin?token=${tokenString}`,
     receipt: {
       transactionId,
       amount: feeAmount,
       currency: 'USD',
       paidAt,
-      statement,
+      statement: 'If hospital pay the application services fee and the fee is confirmed they can create one admin the link will be sent to them via email(seperate link no one other can access it only use once then link expire)',
     },
   };
 }
 
-/**
- * Verify Single-Use Admin Invite Token
- */
-export async function verifyAdminInviteToken(token: string): Promise<{
-  valid: boolean;
-  tokenData?: AdminInviteToken;
-  hospital?: HospitalRegistration;
-  reason?: 'not_found' | 'expired' | 'already_used';
-  message: string;
-}> {
+export async function verifyAdminInviteToken(token: string) {
+  await ensureFirestoreInitialized();
   const store = getStore();
   const invite = store.adminInviteTokens.find((t) => t.token === token);
-
   if (!invite) {
     return {
       valid: false,
-      reason: 'not_found',
-      message: 'Invalid administrator activation token. No matching hospital registration found.',
+      reason: 'not_found' as const,
+      message: 'Invalid administrator activation token.',
     };
   }
-
   if (invite.used) {
     return {
       valid: false,
-      reason: 'already_used',
+      reason: 'already_used' as const,
       tokenData: invite,
-      message: 'This exclusive administrator setup link has already been used and is now permanently expired. No other user can access or reuse this link.',
+      message: 'This setup link has already been used and is expired.',
     };
   }
-
   const now = new Date();
-  const exp = new Date(invite.expiresAt);
-  if (now > exp) {
+  if (now > new Date(invite.expiresAt)) {
     return {
       valid: false,
-      reason: 'expired',
+      reason: 'expired' as const,
       tokenData: invite,
-      message: 'This administrator activation invitation link has expired. Please contact hospital licensing to request re-validation.',
+      message: 'This activation link has expired.',
     };
   }
-
   const hospital = store.hospitalRegistrations.find((h) => h.id === invite.hospitalId);
-
   return {
     valid: true,
     tokenData: invite,
     hospital,
-    message: 'Valid single-use administrator activation token.',
+    message: 'Valid single-use administrator token.',
   };
 }
 
-/**
- * Create Primary Admin Account using Single-Use Invite Token
- * Permanently marks the token as used so no one else can ever access it.
- */
 export async function createAdminFromInviteToken(
   token: string,
   adminData: {
@@ -1882,28 +1837,18 @@ export async function createAdminFromInviteToken(
     password: string;
     phone?: string;
   }
-): Promise<{
-  success: boolean;
-  admin?: AdminAccount;
-  error?: string;
-  message?: string;
-}> {
+) {
+  await ensureFirestoreInitialized();
   const store = getStore();
   const verification = await verifyAdminInviteToken(token);
-
   if (!verification.valid || !verification.tokenData) {
-    return {
-      success: false,
-      error: verification.message,
-    };
+    return { success: false, error: verification.message };
   }
 
   const invite = verification.tokenData;
   const hospital = verification.hospital || store.hospitalRegistrations.find((h) => h.id === invite.hospitalId);
-
   const usedTimestamp = new Date().toISOString();
 
-  // Create Primary Admin Account
   const newAdmin: AdminAccount = {
     id: `adm-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
     hospitalId: invite.hospitalId,
@@ -1916,32 +1861,92 @@ export async function createAdminFromInviteToken(
     createdAt: usedTimestamp,
   };
 
-  // Permanently burn/expire the single-use token
   invite.used = true;
   invite.usedAt = usedTimestamp;
   invite.createdAdminEmail = adminData.email.trim().toLowerCase();
   invite.createdAdminName = adminData.name.trim();
 
-  // Update Hospital registration
-  if (hospital) {
-    hospital.adminInviteTokenUsed = true;
-    hospital.adminCreatedEmail = adminData.email.trim().toLowerCase();
-    hospital.adminCreatedAt = usedTimestamp;
+  try {
+    await setDoc(doc(db, 'adminAccounts', newAdmin.id), newAdmin);
+    await setDoc(doc(db, 'adminInviteTokens', invite.token), invite);
+  } catch (err) {
+    console.warn('Firestore createAdmin error:', err);
   }
 
   store.adminAccounts.push(newAdmin);
-
   return {
     success: true,
     admin: newAdmin,
-    message: 'Primary Hospital Administrator account successfully created. This single-use activation link has now expired.',
+    message: 'Primary Hospital Administrator account created.',
   };
 }
 
-/**
- * Application Administrator: Provision Clinical Admin Panel for a registered hospital
- * Requirement: "the clinical admin panel can only be created by admin of the application"
- */
+export async function reuploadDatabase(payload: {
+  branches?: Branch[];
+  services?: Service[];
+  doctors?: Doctor[];
+  schedules?: DoctorSchedule[];
+  holidays?: ClinicHoliday[];
+  unavailabilities?: DoctorUnavailability[];
+  appointments?: Appointment[];
+  patients?: PatientProfile[];
+}) {
+  await ensureFirestoreInitialized();
+  const store = getStore();
+  const updatedSummary: Record<string, number> = {};
+
+  if (Array.isArray(payload.branches)) {
+    store.branches = payload.branches;
+    updatedSummary.branches = payload.branches.length;
+    for (const b of payload.branches) {
+      try { await setDoc(doc(db, 'branches', b.id), b); } catch {}
+    }
+  }
+  if (Array.isArray(payload.services)) {
+    store.services = payload.services;
+    updatedSummary.services = payload.services.length;
+    for (const s of payload.services) {
+      try { await setDoc(doc(db, 'services', s.id), s); } catch {}
+    }
+  }
+  if (Array.isArray(payload.doctors)) {
+    store.doctors = payload.doctors;
+    updatedSummary.doctors = payload.doctors.length;
+    for (const d of payload.doctors) {
+      try { await setDoc(doc(db, 'doctors', d.id), d); } catch {}
+    }
+  }
+  if (Array.isArray(payload.schedules)) {
+    store.schedules = payload.schedules;
+    updatedSummary.schedules = payload.schedules.length;
+    for (const sc of payload.schedules) {
+      try { await setDoc(doc(db, 'schedules', sc.id), sc); } catch {}
+    }
+  }
+  if (Array.isArray(payload.appointments)) {
+    store.appointments = payload.appointments;
+    updatedSummary.appointments = payload.appointments.length;
+    for (const apt of payload.appointments) {
+      try { await setDoc(doc(db, 'appointments', apt.id), apt); } catch {}
+    }
+  }
+  if (Array.isArray(payload.patients)) {
+    store.patients.clear();
+    for (const p of payload.patients) {
+      if (p.email) store.patients.set(p.email.toLowerCase(), p);
+      try { await setDoc(doc(db, 'patients', p.id), p); } catch {}
+    }
+    updatedSummary.patients = payload.patients.length;
+  }
+
+  return {
+    success: true,
+    message: 'Database successfully reloaded with updated clinical dataset.',
+    counts: updatedSummary,
+    timestamp: new Date().toISOString(),
+  };
+}
+
 export async function provisionClinicalAdminPanel(
   hospitalId: string,
   provisionedBy = 'Application Super Admin'
@@ -1953,6 +1958,7 @@ export async function provisionClinicalAdminPanel(
   error?: string;
   message?: string;
 }> {
+  await ensureFirestoreInitialized();
   const store = getStore();
   const hospital = store.hospitalRegistrations.find((h) => h.id === hospitalId);
   if (!hospital) {
@@ -1964,7 +1970,6 @@ export async function provisionClinicalAdminPanel(
   hospital.panelProvisionedAt = now;
   hospital.panelProvisionedBy = provisionedBy;
 
-  // Ensure branch studio exists for this hospital
   let branch = store.branches.find(
     (b) => b.id === hospital.branchId || b.name.toLowerCase() === hospital.hospitalName.toLowerCase()
   );
@@ -1984,11 +1989,15 @@ export async function provisionClinicalAdminPanel(
       reviewsCount: 1,
       active: true,
     };
-    store.branches.push(branch);
+    await saveBranch(branch);
     hospital.branchId = branchId;
   } else {
     hospital.branchId = branch.id;
   }
+
+  try {
+    await setDoc(doc(db, 'hospitalRegistrations', hospital.id), hospital);
+  } catch {}
 
   const inviteUrl = `/hospital/setup-admin?token=${hospital.adminInviteToken}`;
 
@@ -2000,68 +2009,4 @@ export async function provisionClinicalAdminPanel(
     message: `Clinical Admin Panel for "${hospital.hospitalName}" successfully provisioned and authorized by Application Admin. Single-use invitation link is active.`,
   };
 }
-
-/**
- * Clinic Admin Management Functions
- * Requirement: "the clinic admin account can be created by admin"
- */
-export async function getClinicAdmins(): Promise<ClinicAdminAccount[]> {
-  const store = getStore();
-  return store.clinicAdmins || [];
-}
-
-export async function getClinicAdminByEmail(email: string): Promise<ClinicAdminAccount | null> {
-  const store = getStore();
-  const clean = email.trim().toLowerCase();
-  return store.clinicAdmins?.find((c) => c.email.toLowerCase() === clean) || null;
-}
-
-export async function createClinicAdmin(data: {
-  name: string;
-  email: string;
-  password?: string;
-  phone?: string;
-  clinicId: string;
-}): Promise<{
-  success: boolean;
-  clinicAdmin?: ClinicAdminAccount;
-  error?: string;
-}> {
-  const store = getStore();
-  if (!store.clinicAdmins) store.clinicAdmins = [...INITIAL_CLINIC_ADMINS];
-
-  const cleanEmail = data.email.trim().toLowerCase();
-  if (store.clinicAdmins.some((c) => c.email.toLowerCase() === cleanEmail)) {
-    return { success: false, error: 'A clinic administrator with this email already exists.' };
-  }
-
-  const branch = store.branches.find((b) => b.id === data.clinicId);
-  const newClinicAdmin: ClinicAdminAccount = {
-    id: `clinic-adm-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-    name: data.name.trim(),
-    email: cleanEmail,
-    password: data.password?.trim() || 'smile1234',
-    phone: data.phone?.trim() || '(555) 234-1100',
-    clinicId: data.clinicId,
-    clinicName: branch?.name || 'Assigned Studio Branch',
-    role: 'clinic_admin',
-    createdAt: new Date().toISOString(),
-  };
-
-  store.clinicAdmins.push(newClinicAdmin);
-
-  return {
-    success: true,
-    clinicAdmin: newClinicAdmin,
-  };
-}
-
-export async function deleteClinicAdmin(id: string): Promise<boolean> {
-  const store = getStore();
-  if (!store.clinicAdmins) return false;
-  const initialLen = store.clinicAdmins.length;
-  store.clinicAdmins = store.clinicAdmins.filter((c) => c.id !== id && c.email.toLowerCase() !== id.toLowerCase());
-  return store.clinicAdmins.length < initialLen;
-}
-
 
