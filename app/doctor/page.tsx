@@ -48,6 +48,7 @@ import {
   Service,
   PersonalAssistant
 } from '@/types/dental';
+import ImageUploadField from '@/components/ui/ImageUploadField';
 
 const DAYS_OF_WEEK = [
   'Sunday',
@@ -135,6 +136,7 @@ function DoctorPortalContent() {
     experienceYears: 10,
     bio: '',
     languages: 'English',
+    imageUrl: '',
   });
 
   const showNotification = useCallback((type: 'success' | 'error', message: string) => {
@@ -215,6 +217,7 @@ function DoctorPortalContent() {
       experienceYears: doc.experienceYears,
       bio: doc.bio,
       languages: doc.languages.join(', '),
+      imageUrl: doc.imageUrl || '',
     });
     if (doc.branchIds.length > 0) {
       setNewScheduleData((prev) => ({ ...prev, branchId: doc.branchIds[0] }));
@@ -399,13 +402,14 @@ function DoctorPortalContent() {
           experienceYears: Number(profileFormData.experienceYears),
           bio: profileFormData.bio,
           languages: profileFormData.languages.split(',').map((s) => s.trim()).filter(Boolean),
+          imageUrl: profileFormData.imageUrl || selectedDoctor.imageUrl,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to update profile');
 
       showNotification('success', 'Doctor credentials and profile updated.');
-      const updatedDocsRes = await fetch('/api/doctors');
+      const updatedDocsRes = await fetch('/api/doctors', { cache: 'no-store' });
       const updatedDocs = await updatedDocsRes.json();
       setDoctors(updatedDocs.doctors || []);
     } catch (err: any) {
@@ -633,6 +637,7 @@ function DoctorPortalContent() {
                     src={selectedDoctor.imageUrl}
                     alt={selectedDoctor.name}
                     fill
+                    unoptimized
                     className="object-cover"
                     referrerPolicy="no-referrer"
                   />
@@ -1318,6 +1323,16 @@ function DoctorPortalContent() {
             </div>
 
             <form onSubmit={handleSaveProfile} className="space-y-5">
+              {/* Doctor Portrait Photo with JPG / PNG Upload */}
+              <ImageUploadField
+                label="Doctor Portrait Photo"
+                value={profileFormData.imageUrl}
+                onChange={(url) => setProfileFormData({ ...profileFormData, imageUrl: url })}
+                aspectRatio="square"
+                placeholderSeed={selectedDoctor.id}
+                helperText="Upload your doctor portrait photo in JPG or PNG format, or enter URL."
+              />
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">

@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getBranches, getBranchById, saveBranch } from '@/lib/db';
+import { getBranches, getBranchById, saveBranch, deleteBranch } from '@/lib/db';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function GET(req: NextRequest) {
   try {
@@ -25,11 +28,11 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    if (!body || !body.name) {
+    if (!body || !body.name || !body.name.trim()) {
       return NextResponse.json({ error: 'Branch name is required' }, { status: 400 });
     }
     const branch = await saveBranch(body);
-    return NextResponse.json({ success: true, branch });
+    return NextResponse.json({ success: true, branch, message: 'Clinic studio successfully saved.' });
   } catch (error: any) {
     console.error('Error saving branch:', error);
     return NextResponse.json({ error: error.message || 'Failed to save branch' }, { status: 500 });
@@ -43,11 +46,11 @@ export async function DELETE(req: NextRequest) {
     if (!id) {
       return NextResponse.json({ error: 'Branch id is required' }, { status: 400 });
     }
-    const { deleteBranch } = await import('@/lib/db');
     const success = await deleteBranch(id);
-    return NextResponse.json({ success });
+    return NextResponse.json({ success: true, deleted: success, message: 'Clinic location removed from network.' });
   } catch (error: any) {
     console.error('Error deleting branch:', error);
     return NextResponse.json({ error: error.message || 'Failed to delete branch' }, { status: 500 });
   }
 }
+

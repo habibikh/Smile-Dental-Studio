@@ -51,6 +51,7 @@ import ClinicManagementTab from '@/components/admin/ClinicManagementTab';
 import PatientHistoryTab from '@/components/admin/PatientHistoryTab';
 import DoctorBioModal from '@/components/admin/DoctorBioModal';
 import ClinicProfileAndImagesTab from '@/components/admin/ClinicProfileAndImagesTab';
+import ImageUploadField from '@/components/ui/ImageUploadField';
 
 export default function AdminPage() {
   const { user, isPatient, isClinicAdmin, isAppAdmin } = useAuth();
@@ -58,23 +59,27 @@ export default function AdminPage() {
   // Navigation tab state
   const [activeTab, setActiveTab] = useState<string>('analytics');
 
-  // Clinic scoping state (locked for clinic admin, selectable for app admin)
-  const [selectedClinicId, setSelectedClinicId] = useState<string>('branch-downtown');
-  const effectiveClinicId = isClinicAdmin && user?.clinicId ? user.clinicId : selectedClinicId;
-
   // Core Data States
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [users, setUsers] = useState<
     (PatientProfile & { totalAppointments: number; upcomingAppointments: number; lastVisit?: string })[]
   >([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
-  const [branches, setBranches] = useState<Branch[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [clinicAdmins, setClinicAdmins] = useState<ClinicAdminAccount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(
     null
   );
+
+  // Clinic scoping state (locked for clinic admin, selectable for app admin)
+  const [selectedClinicId, setSelectedClinicId] = useState<string>('branch-downtown');
+  const validClinicId =
+    selectedClinicId !== 'all' && branches.length > 0 && !branches.some((b) => b.id === selectedClinicId)
+      ? branches[0]?.id || 'all'
+      : selectedClinicId;
+  const effectiveClinicId = isClinicAdmin && user?.clinicId ? user.clinicId : validClinicId;
 
   // Search & Filter States
   const [userSearch, setUserSearch] = useState('');
@@ -129,12 +134,12 @@ export default function AdminPage() {
   const loadAllAdminData = useCallback(async () => {
     try {
       const [usersRes, aptsRes, docRes, branchRes, srvRes, clinicAdminsRes] = await Promise.all([
-        fetch('/api/admin/users').then((r) => r.json()).catch(() => ({})),
-        fetch('/api/appointments').then((r) => r.json()).catch(() => ({})),
-        fetch('/api/doctors').then((r) => r.json()).catch(() => ({})),
-        fetch('/api/branches').then((r) => r.json()).catch(() => ({})),
-        fetch('/api/services').then((r) => r.json()).catch(() => ({})),
-        fetch('/api/admin/clinic-admins').then((r) => r.json()).catch(() => ({})),
+        fetch('/api/admin/users', { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
+        fetch('/api/appointments', { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
+        fetch('/api/doctors', { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
+        fetch('/api/branches', { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
+        fetch('/api/services', { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
+        fetch('/api/admin/clinic-admins', { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
       ]);
 
       if (usersRes.users) setUsers(usersRes.users);
@@ -153,12 +158,12 @@ export default function AdminPage() {
   useEffect(() => {
     let active = true;
     Promise.all([
-      fetch('/api/admin/users').then((r) => r.json()).catch(() => ({})),
-      fetch('/api/appointments').then((r) => r.json()).catch(() => ({})),
-      fetch('/api/doctors').then((r) => r.json()).catch(() => ({})),
-      fetch('/api/branches').then((r) => r.json()).catch(() => ({})),
-      fetch('/api/services').then((r) => r.json()).catch(() => ({})),
-      fetch('/api/admin/clinic-admins').then((r) => r.json()).catch(() => ({})),
+      fetch('/api/admin/users', { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
+      fetch('/api/appointments', { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
+      fetch('/api/doctors', { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
+      fetch('/api/branches', { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
+      fetch('/api/services', { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
+      fetch('/api/admin/clinic-admins', { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
     ]).then(([usersRes, aptsRes, docRes, branchRes, srvRes, clinicAdminsRes]) => {
       if (!active) return;
       if (usersRes?.users) setUsers(usersRes.users);
@@ -260,16 +265,21 @@ export default function AdminPage() {
   // Handle Save Doctor (Clinic Admin or App Admin can create/edit doctors)
   const handleSaveDoctor = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!doctorFormData.name.trim() || !doctorFormData.specialization.trim()) {
-      showNotification('error', 'Doctor Name and Specialization are required.');
+    if (!doctorFormData.name.trim()) {
+      showNotification('error', 'Doctor Name is required.');
       return;
     }
 
     // Ensure valid branch IDs (never empty, never 'all')
+    const fallbackClinic = user?.clinicId || (effectiveClinicId !== 'all' ? effectiveClinicId : branches[0]?.id || 'branch-downtown');
     const safeBranchIds =
       Array.isArray(doctorFormData.branchIds) && doctorFormData.branchIds.filter((b) => b && b !== 'all').length > 0
-        ? doctorFormData.branchIds.filter((b) => b && b !== 'all')
-        : [effectiveClinicId !== 'all' ? effectiveClinicId : branches[0]?.id || 'branch-downtown'];
+        ? Array.from(new Set(
+            isClinicAdmin && user?.clinicId
+              ? [...doctorFormData.branchIds.filter((b) => b && b !== 'all'), user.clinicId]
+              : doctorFormData.branchIds.filter((b) => b && b !== 'all')
+          ))
+        : [fallbackClinic];
 
     const safeServiceIds =
       Array.isArray(doctorFormData.serviceIds) && doctorFormData.serviceIds.length > 0
@@ -305,9 +315,9 @@ export default function AdminPage() {
           email: safeEmail,
           password: safePassword,
           phone: doctorFormData.phone.trim() || '(555) 234-1100',
-          title: doctorFormData.title.trim() || `Specialist in ${doctorFormData.specialization.trim()}`,
+          title: doctorFormData.title.trim() || `Specialist in ${doctorFormData.specialization.trim() || 'Dentistry'}`,
           qualification: doctorFormData.qualification.trim() || 'DDS / DMD Board Certified',
-          specialization: doctorFormData.specialization.trim(),
+          specialization: doctorFormData.specialization.trim() || 'Cosmetic & Aesthetic Dentistry',
           experienceYears: Number(doctorFormData.experienceYears) || 5,
           bio:
             doctorFormData.bio.trim() ||
@@ -328,7 +338,7 @@ export default function AdminPage() {
             updated[idx] = data.doctor;
             return updated;
           }
-          return [...prev, data.doctor];
+          return [data.doctor, ...prev];
         });
 
         showNotification(
@@ -369,12 +379,12 @@ export default function AdminPage() {
       imageUrl: doc.imageUrl,
       branchIds: validBranchIds,
       serviceIds: doc.serviceIds && doc.serviceIds.length > 0 ? doc.serviceIds : ['srv-checkup-cleaning'],
-      languages: doc.languages?.join(', ') || 'English',
+      languages: Array.isArray(doc.languages) ? doc.languages.join(', ') : doc.languages || 'English',
     });
     setIsAddDoctorModalOpen(true);
   };
 
-  // Handle Delete Doctor (Clinic Admin can delete doctors)
+  // Handle Delete Doctor (Clinic Admin or App Admin can delete doctors)
   const handleDeleteDoctor = async (doctorId: string, doctorName: string) => {
     if (!confirm(`Are you sure you want to remove specialist "${doctorName}" from the clinic staff roster?`)) {
       return;
@@ -387,6 +397,7 @@ export default function AdminPage() {
       const data = await res.json();
       if (data.success) {
         showNotification('success', `Specialist "${doctorName}" removed.`);
+        setDoctors((prev) => prev.filter((d) => d.id !== doctorId));
         if (selectedDoctorForBio?.id === doctorId) setSelectedDoctorForBio(null);
         await loadAllAdminData();
       } else {
@@ -564,42 +575,42 @@ export default function AdminPage() {
               )}
 
               {isClinicAdmin && (
-                <>
-                  <button
-                    onClick={() => setIsAddUserModalOpen(true)}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-xs transition-all cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5 text-teal-400" />
-                    <span>Register Patient</span>
-                  </button>
+                <button
+                  onClick={() => setIsAddUserModalOpen(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-xs transition-all cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5 text-teal-400" />
+                  <span>Register Patient</span>
+                </button>
+              )}
 
-                  <button
-                    onClick={() => {
-                      const defaultBranch = effectiveClinicId !== 'all' ? effectiveClinicId : branches[0]?.id || 'branch-downtown';
-                      setEditingDoctorId(null);
-                      setDoctorFormData({
-                        name: '',
-                        email: '',
-                        password: 'doctor123',
-                        phone: '(555) 234-1100',
-                        title: 'Specialist Dentist',
-                        qualification: 'DDS / DMD Board Certified',
-                        specialization: 'Cosmetic & Aesthetic Dentistry',
-                        experienceYears: 8,
-                        bio: '',
-                        imageUrl: `https://picsum.photos/seed/doc-${Date.now()}/800/800`,
-                        branchIds: [defaultBranch],
-                        serviceIds: services.length > 0 ? [services[0].id] : ['srv-checkup-cleaning'],
-                        languages: 'English',
-                      });
-                      setIsAddDoctorModalOpen(true);
-                    }}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold shadow-xs transition-all cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Add Doctor</span>
-                  </button>
-                </>
+              {(isClinicAdmin || isAppAdmin) && (
+                <button
+                  onClick={() => {
+                    const defaultBranch = effectiveClinicId !== 'all' ? effectiveClinicId : branches[0]?.id || 'branch-downtown';
+                    setEditingDoctorId(null);
+                    setDoctorFormData({
+                      name: '',
+                      email: '',
+                      password: 'doctor123',
+                      phone: '(555) 234-1100',
+                      title: 'Specialist Dentist',
+                      qualification: 'DDS / DMD Board Certified',
+                      specialization: 'Cosmetic & Aesthetic Dentistry',
+                      experienceYears: 8,
+                      bio: '',
+                      imageUrl: `https://picsum.photos/seed/doc-${Date.now()}/800/800`,
+                      branchIds: [defaultBranch],
+                      serviceIds: services.length > 0 ? [services[0].id] : ['srv-checkup-cleaning'],
+                      languages: 'English',
+                    });
+                    setIsAddDoctorModalOpen(true);
+                  }}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold shadow-xs transition-all cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add Doctor</span>
+                </button>
               )}
             </div>
           </div>
@@ -941,12 +952,13 @@ export default function AdminPage() {
                           <div className="relative w-14 h-14 rounded-2xl overflow-hidden bg-slate-100 ring-2 ring-teal-600/20 shrink-0 shadow-2xs">
                             <Image
                               src={
-                                doc.imageUrl && doc.imageUrl.startsWith('http')
+                                doc.imageUrl && (doc.imageUrl.startsWith('http') || doc.imageUrl.startsWith('data:image/'))
                                   ? doc.imageUrl
                                   : `https://picsum.photos/seed/${doc.id}/800/800`
                               }
                               alt={doc.name}
                               fill
+                              unoptimized
                               className="object-cover"
                               referrerPolicy="no-referrer"
                             />
@@ -1004,8 +1016,8 @@ export default function AdminPage() {
                           <span>View Complete Bio & Qualifications</span>
                         </button>
 
-                        {/* Edit & Delete for Clinic Admin only */}
-                        {isClinicAdmin && (
+                        {/* Edit & Delete for Clinic Admin and App Admin */}
+                        {(isClinicAdmin || isAppAdmin) && (
                           <div className="flex items-center gap-2">
                             <button
                               type="button"
@@ -1287,7 +1299,7 @@ export default function AdminPage() {
         <DoctorBioModal
           doctor={selectedDoctorForBio}
           branches={branches}
-          canEdit={isClinicAdmin}
+          canEdit={isClinicAdmin || isAppAdmin}
           onClose={() => setSelectedDoctorForBio(null)}
           onEdit={(doc) => {
             setSelectedDoctorForBio(null);
@@ -1297,7 +1309,7 @@ export default function AdminPage() {
       )}
 
       {/* ================================================================= */}
-      {/* MODAL: CREATE / EDIT DOCTOR ACCOUNT (CLINIC ADMIN) */}
+      {/* MODAL: CREATE / EDIT DOCTOR ACCOUNT (CLINIC ADMIN & APP ADMIN) */}
       {/* ================================================================= */}
       {isAddDoctorModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
@@ -1328,54 +1340,15 @@ export default function AdminPage() {
             </div>
 
             <form onSubmit={handleSaveDoctor} className="space-y-4">
-              {/* Doctor Photo */}
-              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center justify-between">
-                  <span className="flex items-center gap-1.5">
-                    <Camera className="w-3.5 h-3.5 text-teal-600" />
-                    Doctor Portrait Photo URL
-                  </span>
-                  <span className="text-[11px] font-normal text-slate-400">Optional</span>
-                </label>
-                <div className="flex items-center gap-3 mb-2.5">
-                  <div className="relative w-12 h-12 rounded-xl overflow-hidden bg-slate-200 ring-2 ring-teal-600/30 shrink-0">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={
-                        doctorFormData.imageUrl && doctorFormData.imageUrl.startsWith('http')
-                          ? doctorFormData.imageUrl
-                          : 'https://picsum.photos/seed/doctor-preview/800/800'
-                      }
-                      alt="Doctor portrait preview"
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = 'https://picsum.photos/seed/doctor-preview/800/800';
-                      }}
-                    />
-                  </div>
-                  <input
-                    type="text"
-                    value={doctorFormData.imageUrl}
-                    onChange={(e) => setDoctorFormData({ ...doctorFormData, imageUrl: e.target.value })}
-                    placeholder="https://picsum.photos/seed/... (auto-generated if left blank)"
-                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-hidden focus:border-teal-600"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const seed = Math.floor(Math.random() * 10000);
-                      setDoctorFormData({
-                        ...doctorFormData,
-                        imageUrl: `https://picsum.photos/seed/dentist-${seed}/800/800`,
-                      });
-                    }}
-                    className="px-3 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-xl whitespace-nowrap cursor-pointer shrink-0"
-                    title="Generate randomized avatar URL"
-                  >
-                    Random Photo
-                  </button>
-                </div>
-              </div>
+              {/* Doctor Portrait Photo with JPG / PNG Upload */}
+              <ImageUploadField
+                label="Doctor Portrait Photo"
+                value={doctorFormData.imageUrl}
+                onChange={(url) => setDoctorFormData({ ...doctorFormData, imageUrl: url })}
+                aspectRatio="square"
+                placeholderSeed={editingDoctorId || doctorFormData.name || 'doctor'}
+                helperText="Upload doctor photo in JPG or PNG format, or enter URL."
+              />
 
               {/* Name & Title */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

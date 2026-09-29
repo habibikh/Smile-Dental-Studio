@@ -743,17 +743,17 @@ export async function getBranchById(id: string): Promise<Branch | null> {
 export async function saveBranch(data: Partial<Branch> & { name: string }): Promise<Branch> {
   const store = getStore();
   const id = data.id || `branch-${data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now().toString().slice(-4)}`;
-  const existingIndex = store.branches.findIndex((b) => b.id === id);
+  const existingIndex = data.id ? store.branches.findIndex((b) => b.id === data.id) : -1;
 
   const updatedBranch: Branch = {
-    id,
-    name: data.name.trim(),
-    city: data.city?.trim() || 'Metro City',
-    address: data.address?.trim() || 'Central Clinic Ave',
-    phone: data.phone?.trim() || '(555) 234-5678',
-    email: data.email?.trim() || 'clinic@smiledental.com',
-    openingHours: data.openingHours?.trim() || 'Mon - Sat: 8:00 AM - 6:00 PM',
-    description: data.description?.trim() || 'Specialized dental clinic facility with state-of-the-art operatories.',
+    id: existingIndex >= 0 ? store.branches[existingIndex].id : id,
+    name: (data.name || 'Smile Dental Studio').trim(),
+    city: (data.city || 'Metro City').trim(),
+    address: (data.address || 'Central Clinical Blvd, Suite 100').trim(),
+    phone: (data.phone || '(555) 234-5678').trim(),
+    email: (data.email || 'clinic@smiledental.com').trim(),
+    openingHours: (data.openingHours || 'Mon - Fri: 8:00 AM - 6:00 PM | Sat: 9:00 AM - 3:00 PM').trim(),
+    description: (data.description || 'Specialized dental clinic facility with state-of-the-art operatories.').trim(),
     imageUrl: data.imageUrl?.trim() || `https://picsum.photos/seed/${id}/800/600`,
     rating: data.rating !== undefined ? Number(data.rating) : 4.9,
     reviewsCount: data.reviewsCount !== undefined ? Number(data.reviewsCount) : 100,
@@ -772,6 +772,20 @@ export async function deleteBranch(id: string): Promise<boolean> {
   const store = getStore();
   const init = store.branches.length;
   store.branches = store.branches.filter((b) => b.id !== id);
+
+  // Reassign any doctor whose only assigned branch was this deleted branch to another active branch
+  const remainingBranch = store.branches[0]?.id;
+  if (remainingBranch) {
+    store.doctors.forEach((doc) => {
+      if (doc.branchIds?.includes(id)) {
+        doc.branchIds = doc.branchIds.filter((bId) => bId !== id);
+        if (doc.branchIds.length === 0) {
+          doc.branchIds = [remainingBranch];
+        }
+      }
+    });
+  }
+
   return store.branches.length < init;
 }
 
@@ -809,15 +823,28 @@ export async function getDoctorByEmail(email: string): Promise<Doctor | null> {
   return store.doctors.find((d) => d.email?.toLowerCase() === email.toLowerCase() && d.active) || null;
 }
 
-export async function saveDoctor(data: Partial<Doctor> & { name: string; specialization: string }): Promise<Doctor> {
+export async function saveDoctor(data: Partial<Doctor> & { name: string; specialization?: string }): Promise<Doctor> {
   const store = getStore();
-  const cleanEmail = data.email?.trim().toLowerCase() || `${data.name.toLowerCase().replace(/[^a-z0-9]+/g, '.')}@smiledental.com`;
   
-  // Match by id or by email
-  const id = data.id || `dr-${data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now().toString().slice(-4)}`;
-  let existingIndex = store.doctors.findIndex((d) => d.id === id);
-  if (existingIndex < 0) {
-    existingIndex = store.doctors.findIndex((d) => d.email && d.email.toLowerCase() === cleanEmail);
+  // If editing existing doctor by ID
+  const isEditing = Boolean(data.id);
+  let existingIndex = isEditing ? store.doctors.findIndex((d) => d.id === data.id) : -1;
+  const id = isEditing && existingIndex >= 0
+    ? store.doctors[existingIndex].id
+    : data.id || `dr-${data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now().toString().slice(-4)}`;
+
+  // Determine unique email
+  let cleanEmail = data.email?.trim().toLowerCase();
+  if (!cleanEmail) {
+    const baseEmail = `dr.${data.name.toLowerCase().replace(/[^a-z0-9]+/g, '.')}`;
+    cleanEmail = `${baseEmail}@smiledental.com`;
+    if (!isEditing) {
+      let counter = 1;
+      while (store.doctors.some((d) => d.email?.toLowerCase() === cleanEmail)) {
+        counter++;
+        cleanEmail = `${baseEmail}${counter}@smiledental.com`;
+      }
+    }
   }
 
   const allBranchIds = store.branches.map((b) => b.id);
@@ -830,15 +857,17 @@ export async function saveDoctor(data: Partial<Doctor> & { name: string; special
     safeBranchIds = allBranchIds.length > 0 ? [allBranchIds[0]] : ['branch-downtown'];
   }
 
+  const safeSpecialization = (data.specialization || 'Cosmetic & Aesthetic Dentistry').trim();
+
   const updatedDoc: Doctor = {
-    id: existingIndex >= 0 ? store.doctors[existingIndex].id : id,
+    id,
     name: data.name.trim(),
     email: cleanEmail,
     password: data.password?.trim() || 'doctor123',
     phone: data.phone?.trim() || '(555) 234-1100',
-    title: data.title?.trim() || `Specialist in ${data.specialization}`,
+    title: data.title?.trim() || `Specialist in ${safeSpecialization}`,
     qualification: data.qualification?.trim() || 'DDS / DMD Board Certified',
-    specialization: data.specialization.trim(),
+    specialization: safeSpecialization,
     experienceYears: Number(data.experienceYears) || 5,
     bio: data.bio?.trim() || `${data.name} is a dedicated dental specialist at Smile Dental Clinic committed to gentle, evidence-based patient care.`,
     imageUrl: data.imageUrl?.trim() || `https://picsum.photos/seed/${id}/800/800`,
@@ -918,6 +947,8 @@ export async function deleteDoctor(id: string): Promise<boolean> {
   // Also clean up doctor schedules and unavailabilities
   store.schedules = store.schedules.filter((s) => s.doctorId !== id);
   store.unavailabilities = store.unavailabilities.filter((u) => u.doctorId !== id);
+  // Clean up clinic admin roster
+  store.clinicAdmins = store.clinicAdmins.filter((a) => a.id !== `clinic-adm-${id}` && a.id !== id);
   return store.doctors.length < initialCount;
 }
 

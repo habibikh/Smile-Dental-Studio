@@ -174,9 +174,14 @@ export default function ClinicsAndDoctorsDirectoryTab({
                           <div className="flex items-center gap-3">
                             <div className="relative w-12 h-12 rounded-xl overflow-hidden bg-slate-200 shrink-0 ring-1 ring-slate-200">
                               <Image
-                                src={doc.imageUrl}
+                                src={
+                                  doc.imageUrl && (doc.imageUrl.startsWith('http') || doc.imageUrl.startsWith('data:image/'))
+                                    ? doc.imageUrl
+                                    : `https://picsum.photos/seed/${doc.id}/800/800`
+                                }
                                 alt={doc.name}
                                 fill
+                                unoptimized
                                 className="object-cover"
                                 referrerPolicy="no-referrer"
                               />

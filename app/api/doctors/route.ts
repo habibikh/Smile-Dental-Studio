@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDoctors, getDoctorById, getDoctorByEmail, saveDoctor, deleteDoctor } from '@/lib/db';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -36,11 +39,15 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    if (!body.name || !body.specialization) {
-      return NextResponse.json({ error: 'Name and specialization are required' }, { status: 400 });
+    if (!body || !body.name || !body.name.trim()) {
+      return NextResponse.json({ error: 'Doctor name is required' }, { status: 400 });
     }
 
-    const doctor = await saveDoctor(body);
+    const doctor = await saveDoctor({
+      ...body,
+      name: body.name.trim(),
+      specialization: body.specialization?.trim() || 'Cosmetic & Aesthetic Dentistry',
+    });
     return NextResponse.json({ success: true, doctor, message: 'Doctor account successfully saved.' });
   } catch (error: any) {
     console.error('Error saving doctor:', error);
@@ -57,14 +64,11 @@ export async function DELETE(req: NextRequest) {
     }
 
     const deleted = await deleteDoctor(id);
-    if (!deleted) {
-      return NextResponse.json({ error: 'Doctor not found or already deleted' }, { status: 404 });
-    }
-
-    return NextResponse.json({ success: true, message: 'Doctor account and associated schedules removed.' });
+    return NextResponse.json({ success: true, deleted, message: 'Doctor account and associated schedules removed.' });
   } catch (error: any) {
     console.error('Error deleting doctor:', error);
     return NextResponse.json({ error: error.message || 'Failed to delete doctor' }, { status: 500 });
   }
 }
+
 

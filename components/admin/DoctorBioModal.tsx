@@ -47,12 +47,13 @@ export default function DoctorBioModal({
             <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden bg-slate-100 ring-2 ring-teal-600/30 shrink-0 shadow-sm">
               <Image
                 src={
-                  doctor.imageUrl && doctor.imageUrl.startsWith('http')
+                  doctor.imageUrl && (doctor.imageUrl.startsWith('http') || doctor.imageUrl.startsWith('data:image/'))
                     ? doctor.imageUrl
                     : `https://picsum.photos/seed/${doctor.id}/800/800`
                 }
                 alt={doctor.name}
                 fill
+                unoptimized
                 className="object-cover"
                 referrerPolicy="no-referrer"
               />

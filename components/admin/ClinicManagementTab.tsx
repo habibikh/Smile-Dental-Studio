@@ -15,9 +15,11 @@ import {
   X,
   Search,
   Camera,
-  Star
+  Star,
+  AlertTriangle
 } from 'lucide-react';
 import { Branch } from '@/types/dental';
+import ImageUploadField from '@/components/ui/ImageUploadField';
 
 interface ClinicManagementTabProps {
   branches: Branch[];
@@ -34,6 +36,7 @@ export default function ClinicManagementTab({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBranchId, setEditingBranchId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -78,8 +81,8 @@ export default function ClinicManagementTab({
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name.trim() || !formData.address.trim()) {
-      showNotification('error', 'Clinic name and address are required.');
+    if (!formData.name.trim()) {
+      showNotification('error', 'Clinic Studio Name is required.');
       return;
     }
 
@@ -91,6 +94,9 @@ export default function ClinicManagementTab({
         body: JSON.stringify({
           id: editingBranchId || undefined,
           ...formData,
+          name: formData.name.trim(),
+          address: formData.address.trim() || 'Central Clinic Blvd, Suite 100',
+          city: formData.city.trim() || 'Metro Area',
         }),
       });
 
@@ -114,18 +120,23 @@ export default function ClinicManagementTab({
     }
   };
 
-  const handleDelete = async (branch: Branch) => {
-    if (!confirm(`Are you sure you want to deactivate and remove clinic "${branch.name}"?`)) {
+  const handleDelete = async (branchId: string, branchName: string) => {
+    if (!confirm(`Are you sure you want to delete and remove clinic studio "${branchName}" from the system?`)) {
       return;
     }
 
+    setIsDeleting(true);
     try {
-      const res = await fetch(`/api/branches?id=${branch.id}`, {
+      const res = await fetch(`/api/branches?id=${encodeURIComponent(branchId)}`, {
         method: 'DELETE',
       });
       const data = await res.json();
       if (data.success) {
-        showNotification('success', `Clinic "${branch.name}" removed from network.`);
+        showNotification('success', `Clinic "${branchName}" successfully removed from network.`);
+        if (isModalOpen && editingBranchId === branchId) {
+          setIsModalOpen(false);
+          setEditingBranchId(null);
+        }
         await onRefreshData();
       } else {
         throw new Error(data.error || 'Delete failed');
@@ -133,6 +144,8 @@ export default function ClinicManagementTab({
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Delete failed';
       showNotification('error', msg);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -160,7 +173,7 @@ export default function ClinicManagementTab({
             Administrate Clinics & Studio Branches
           </h2>
           <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl">
-            Configure studio facilities, operational hours, addresses, contact details, and add new clinic locations across the metropolitan network.
+            Configure studio facilities, operational hours, addresses, contact details, upload photos in JPG/PNG form, and delete or create clinics across the metropolitan network.
           </p>
         </div>
 
@@ -205,6 +218,7 @@ export default function ClinicManagementTab({
                   src={b.imageUrl || 'https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&q=80&w=1200'}
                   alt={b.name}
                   fill
+                  unoptimized
                   className="object-cover"
                   referrerPolicy="no-referrer"
                 />
@@ -269,11 +283,12 @@ export default function ClinicManagementTab({
                 </button>
 
                 <button
-                  onClick={() => handleDelete(b)}
-                  className="p-1.5 rounded-xl bg-white border border-rose-200 hover:bg-rose-50 text-rose-600 shadow-2xs transition-colors cursor-pointer"
-                  title="Remove Clinic Location"
+                  onClick={() => handleDelete(b.id, b.name)}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-rose-50 border border-rose-200 hover:bg-rose-100 text-rose-700 text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+                  title="Delete Clinic Location"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete</span>
                 </button>
               </div>
             </div>
@@ -301,13 +316,23 @@ export default function ClinicManagementTab({
               </div>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer font-bold"
               >
-                <X className="w-5 h-5" />
+                ✕
               </button>
             </div>
 
             <form onSubmit={handleSave} className="space-y-4">
+              {/* Studio Cover Photo with JPG / PNG Upload */}
+              <ImageUploadField
+                label="Clinic Studio Cover Photo"
+                value={formData.imageUrl}
+                onChange={(url) => setFormData({ ...formData, imageUrl: url })}
+                aspectRatio="wide"
+                placeholderSeed={editingBranchId || 'clinic-studio'}
+                helperText="Upload clinic photo in JPG or PNG format, or enter URL."
+              />
+
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                   Clinic Studio Name *
@@ -325,11 +350,10 @@ export default function ClinicManagementTab({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    City / Neighborhood *
+                    City / Neighborhood
                   </label>
                   <input
                     type="text"
-                    required
                     value={formData.city}
                     onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                     placeholder="e.g. Manhattan, NY"
@@ -352,11 +376,10 @@ export default function ClinicManagementTab({
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Physical Street Address *
+                  Physical Street Address
                 </label>
                 <input
                   type="text"
-                  required
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                   placeholder="e.g. 520 West 28th St, Suite 400"
@@ -390,34 +413,35 @@ export default function ClinicManagementTab({
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Studio Photo URL
-                </label>
-                <input
-                  type="url"
-                  value={formData.imageUrl}
-                  onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                  placeholder="https://images.unsplash.com/..."
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-hidden focus:border-teal-600"
-                />
-              </div>
+              <div className="flex items-center justify-between gap-3 pt-4 border-t border-slate-100">
+                {editingBranchId ? (
+                  <button
+                    type="button"
+                    disabled={isDeleting}
+                    onClick={() => handleDelete(editingBranchId, formData.name)}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold text-xs transition-colors cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>{isDeleting ? 'Deleting...' : 'Delete Clinic'}</span>
+                  </button>
+                ) : <div />}
 
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-semibold text-xs hover:bg-slate-50 cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-xs cursor-pointer disabled:opacity-50"
-                >
-                  {isSubmitting ? 'Saving...' : editingBranchId ? 'Save Changes' : 'Establish Clinic'}
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-semibold text-xs hover:bg-slate-50 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-xs cursor-pointer disabled:opacity-50"
+                  >
+                    {isSubmitting ? 'Saving...' : editingBranchId ? 'Save Changes' : 'Establish Clinic'}
+                  </button>
+                </div>
               </div>
             </form>
           </div>
@@ -426,3 +450,4 @@ export default function ClinicManagementTab({
     </div>
   );
 }
+

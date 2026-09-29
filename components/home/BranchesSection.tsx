@@ -76,6 +76,7 @@ export default function BranchesSection() {
                       src={branch.imageUrl}
                       alt={branch.name}
                       fill
+                      unoptimized
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
                       className="object-cover group-hover:scale-105 transition-transform duration-500"
                       referrerPolicy="no-referrer"

@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Branch } from '@/types/dental';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import ImageUploadField from '@/components/ui/ImageUploadField';
 
 interface ClinicProfileAndImagesTabProps {
   branch: Branch;
@@ -128,63 +129,36 @@ export default function ClinicProfileAndImagesTab({
               </span>
             </div>
 
-            {/* Current Image Preview */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              <div className="md:col-span-1">
-                <div className="relative aspect-4/3 rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-slate-100 group">
-                  <Image
-                    src={formData.imageUrl || branch.imageUrl}
-                    alt={formData.name}
-                    fill
-                    className="object-cover group-hover:scale-105 transition-transform duration-300"
-                    referrerPolicy="no-referrer"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-transparent to-transparent flex items-end p-3">
-                    <span className="text-white text-[11px] font-semibold flex items-center gap-1.5">
-                      <ImageIcon className="w-3.5 h-3.5" />
-                      Current Studio Cover Photo
-                    </span>
-                  </div>
-                </div>
-              </div>
+            {/* Studio Cover Photo with JPG / PNG Upload */}
+            <ImageUploadField
+              label="Clinic Facility & Exterior Image"
+              value={formData.imageUrl}
+              onChange={(url) => setFormData({ ...formData, imageUrl: url })}
+              aspectRatio="wide"
+              placeholderSeed={branch.id}
+              helperText="Upload your studio photo in JPG or PNG format, or choose a preset below."
+            />
 
-              {/* URL Input and Presets */}
-              <div className="md:col-span-2 space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Studio Photo URL
-                  </label>
-                  <input
-                    type="url"
-                    value={formData.imageUrl}
-                    onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                    placeholder="https://images.unsplash.com/..."
-                    className="w-full p-3 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-hidden focus:border-teal-600 shadow-xs"
-                  />
-                </div>
-
-                <div>
-                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">
-                    Quick Clinical Image Presets (Click to apply)
-                  </p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {CLINIC_IMAGE_PRESETS.map((preset) => (
-                      <button
-                        key={preset.name}
-                        type="button"
-                        onClick={() => setFormData({ ...formData, imageUrl: preset.url })}
-                        className={`p-2.5 rounded-xl border text-left text-xs transition-all cursor-pointer ${
-                          formData.imageUrl === preset.url
-                            ? 'bg-teal-50 border-teal-600 ring-2 ring-teal-600/10'
-                            : 'bg-white border-slate-200 hover:border-slate-300'
-                        }`}
-                      >
-                        <p className="font-bold text-slate-900 truncate">{preset.name}</p>
-                        <p className="text-[10px] text-slate-500 truncate mt-0.5">{preset.description}</p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
+            <div>
+              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">
+                Or Select From Clinical Studio Image Presets:
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {CLINIC_IMAGE_PRESETS.map((preset) => (
+                  <button
+                    key={preset.name}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, imageUrl: preset.url })}
+                    className={`p-2.5 rounded-xl border text-left text-xs transition-all cursor-pointer ${
+                      formData.imageUrl === preset.url
+                        ? 'bg-teal-50 border-teal-600 ring-2 ring-teal-600/10'
+                        : 'bg-white border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    <p className="font-bold text-slate-900 truncate">{preset.name}</p>
+                    <p className="text-[10px] text-slate-500 truncate mt-0.5">{preset.description}</p>
+                  </button>
+                ))}
               </div>
             </div>
           </div>
